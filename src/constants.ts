@@ -44,4 +44,5 @@ export const CONFIG: Config = {
 };
 
 // e-amusement 로그인 페이지. (변경되면 이 값만 수정)
-export const LOGIN_URL = "https://my.konami.net/ko/signin?isWebView=false";
+export const LOGIN_URL =
+  "https://p.eagate.573.jp/gate/p/login.html?path=/game/2dx/33/";
