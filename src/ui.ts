@@ -201,6 +201,10 @@ export function buildUI(onClose?: () => void): UIHandle {
       logEl.appendChild(line);
       logEl.scrollTop = logEl.scrollHeight;
     },
+    fail: (msg?: string) => {
+      $("dot").className = "dot err";
+      if (msg) $("status").textContent = msg;
+    },
     done: (data: unknown) => {
       $("dot").className = "dot done";
       const copy = $<HTMLButtonElement>("copy");

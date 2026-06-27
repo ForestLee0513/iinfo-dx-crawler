@@ -94,7 +94,13 @@ export interface ParsedPage {
 export type FetchLike = (
   url: string,
   init?: { credentials?: RequestCredentials }
-) => Promise<{ ok: boolean; status: number; text: () => Promise<string> }>;
+) => Promise<{
+  ok: boolean;
+  status: number;
+  // 리다이렉트를 따라간 최종 URL. 베이직 코스 미구독(error.html 리다이렉트) 감지에 사용.
+  url?: string;
+  text: () => Promise<string>;
+}>;
 
 export interface AuthStatus {
   loggedIn: boolean;
@@ -126,4 +132,5 @@ export interface UIHandle {
   counts: (sp: number, dp: number) => void;
   log: (text: string, cls?: LogClass) => void;
   done: (data: unknown) => void;
+  fail: (msg?: string) => void; // 오류 상태(빨간 점)로 전환 + 선택적 상태 문구
 }

@@ -11,6 +11,17 @@ import type {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// 베이직 코스(구독) 미구독으로 eagate 가 error.html 로 리다이렉트했을 때 던지는 예외.
+// fetchDoc 에서 발생 → crawl 은 전체 크롤을 중단하고, crawlProfile 은 null 을 반환한다.
+export class PaidFeatureError extends Error {
+  requestedUrl?: string;
+  constructor(requestedUrl?: string) {
+    super("베이직 코스(구독)이 필요한 페이지입니다 — error.html 로 리다이렉트됨");
+    this.name = "PaidFeatureError";
+    this.requestedUrl = requestedUrl;
+  }
+}
+
 // URL 한 개를 받아 파싱된 Document 반환. fetchImpl 주입으로 테스트 가능.
 export async function fetchDoc(
   url: string,
@@ -18,6 +29,11 @@ export async function fetchDoc(
 ): Promise<Document> {
   const res = await fetchImpl(url, { credentials: "include" });
   if (!res.ok) throw new Error("HTTP " + res.status);
+  // 베이직 코스 미구독 시 eagate 는 error.html 로 리다이렉트한다. fetch 는 기본적으로
+  // 리다이렉트를 따라가 200(에러 페이지)을 주므로, 최종 URL(res.url)로 감지한다.
+  if (res.url && res.url.includes(CONFIG.errorPath)) {
+    throw new PaidFeatureError(url);
+  }
   const html = await res.text();
   return new DOMParser().parseFromString(html, "text/html");
 }
@@ -73,6 +89,11 @@ export async function crawl(opts: CrawlOptions = {}): Promise<CrawlResult> {
           const doc = await fetchDoc(url, fetchImpl);
           parsed = parseDoc(doc);
         } catch (e) {
+          // 베이직 코스 미구독이면 모든 레벨이 동일하게 막히므로 전체 크롤을 중단한다.
+          if (e instanceof PaidFeatureError) {
+            onLog("베이직 코스(구독)이 필요합니다 — 성적표 페이지에 접근할 수 없습니다.", "warn");
+            throw e;
+          }
           onLog("실패: " + styleName + " LV" + level + " — " + (e as Error).message, "warn");
           break;
         }
@@ -123,6 +144,11 @@ export async function crawlProfile(
     );
     return profile;
   } catch (e) {
+    // 프로필은 선택 정보이므로 베이직 코스 미구독이어도 중단하지 않고 null 만 반환한다.
+    if (e instanceof PaidFeatureError) {
+      onLog("프로필: 베이직 코스 미구독으로 접근할 수 없습니다.", "warn");
+      return null;
+    }
     onLog("프로필 실패: " + (e as Error).message, "warn");
     return null;
   }

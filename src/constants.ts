@@ -46,6 +46,7 @@ export interface StyleDef {
 export interface Config {
   path: string;
   statusPath: string;
+  errorPath: string;
   styles: StyleDef[];
   disp: number;
   step: number;
@@ -57,6 +58,9 @@ export interface Config {
 export const CONFIG: Config = {
   path: "/game/2dx/33/djdata/music/difficulty.html",
   statusPath: "/game/2dx/33/djdata/status.html", // 프로필(스테이터스) 페이지
+  // 베이직 코스 미구독 시 eagate 가 리다이렉트하는 에러 페이지(경로만 비교).
+  // 예: /game/2dx/33/error/error.html?err=1
+  errorPath: "/game/2dx/33/error/error.html",
   styles: [
     { name: "SP", style: 0 },
     { name: "DP", style: 1 },

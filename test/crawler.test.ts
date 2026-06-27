@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { crawl, buildUrl, countByStyle } from "../src/crawler";
+import { crawl, crawlProfile, buildUrl, countByStyle, PaidFeatureError } from "../src/crawler";
 import type { FetchLike } from "../src/types";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -66,5 +66,47 @@ describe("crawl (mock fetch)", () => {
     expect(countByStyle(result.DP)).toBe(0);
     expect(result.SP[5]).toEqual([]);
     expect(warns.length).toBeGreaterThan(0);
+  });
+
+  it("베이직 코스 미구독(error.html 리다이렉트) 시 전체 크롤을 중단한다", async () => {
+    // fetch 가 리다이렉트를 따라가 error.html(최종 url)을 돌려준 상황을 모사
+    const fetchImpl = vi.fn<FetchLike>(async () => ({
+      ok: true,
+      status: 200,
+      url: "https://p.eagate.573.jp/game/2dx/33/error/error.html?err=1",
+      text: async () => "<html><body>error</body></html>",
+    }));
+    const warns: string[] = [];
+    await expect(
+      crawl({
+        origin: "https://p.eagate.573.jp",
+        fetchImpl,
+        delay: 0,
+        onLog: (msg, cls) => { if (cls === "warn") warns.push(msg); },
+      })
+    ).rejects.toBeInstanceOf(PaidFeatureError);
+
+    // 첫 요청에서 즉시 중단되어야 한다(레벨마다 반복 시도하지 않음)
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(warns.some((m) => m.includes("베이직 코스"))).toBe(true);
+  });
+});
+
+describe("crawlProfile (paid feature)", () => {
+  it("error.html 리다이렉트 시 throw 하지 않고 null 을 반환한다", async () => {
+    const fetchImpl = vi.fn<FetchLike>(async () => ({
+      ok: true,
+      status: 200,
+      url: "https://p.eagate.573.jp/game/2dx/33/error/error.html?err=1",
+      text: async () => "<html><body>error</body></html>",
+    }));
+    const warns: string[] = [];
+    const profile = await crawlProfile({
+      origin: "https://p.eagate.573.jp",
+      fetchImpl,
+      onLog: (msg, cls) => { if (cls === "warn") warns.push(msg); },
+    });
+    expect(profile).toBeNull();
+    expect(warns.some((m) => m.includes("베이직 코스"))).toBe(true);
   });
 });

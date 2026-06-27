@@ -1,5 +1,5 @@
 import { buildUI, showLoginRequired } from "./ui";
-import { crawl, crawlProfile, countByStyle } from "./crawler";
+import { crawl, crawlProfile, countByStyle, PaidFeatureError } from "./crawler";
 import { checkLogin } from "./auth";
 import { installNavGuard } from "./guard";
 import { LOGIN_URL } from "./constants";
@@ -30,19 +30,36 @@ declare global {
   // 패널을 닫으면(×) 해제되어 자유롭게 이동할 수 있다.
   const releaseGuard = installNavGuard();
   const ui = buildUI(releaseGuard);
-  ui.log("로그인 확인됨" + (auth.konamiId ? " (" + auth.konamiId + ")" : ""), "ok");
+  ui.log(
+    "로그인 확인됨" + (auth.konamiId ? " (" + auth.konamiId + ")" : ""),
+    "ok",
+  );
   ui.log("페이지를 떠나면 진행 상황/결과가 사라집니다 (닫기로 해제)", "warn");
 
   // 프로필(스테이터스) 먼저 수집 후 성적 크롤
   ui.status("프로필 수집 중…");
   const profile = await crawlProfile({ onLog: ui.log });
 
-  const scores = await crawl({
-    onStatus: ui.status,
-    onLog: ui.log,
-    onProgress: ui.progress,
-    onCounts: ui.counts,
-  });
+  let scores;
+  try {
+    scores = await crawl({
+      onStatus: ui.status,
+      onLog: ui.log,
+      onProgress: ui.progress,
+      onCounts: ui.counts,
+    });
+  } catch (e) {
+    // 베이직 코스 미구독 → 성적표 접근 불가. 안내 후 중단(주입 스크립트라 자동 재시도 불가).
+    if (e instanceof PaidFeatureError) {
+      ui.fail("베이직 코스(구독)이 필요합니다");
+      ui.log(
+        "성적표 페이지는 e-Amusement 베이직 코스 구독이 필요합니다. 구독 후 다시 실행해 주세요.",
+        "warn",
+      );
+      return;
+    }
+    throw e;
+  }
 
   const result: FullResult = { profile, ...scores };
   window.__iidxData = result;

@@ -74,8 +74,11 @@ Because the logic runs in the eagate page context, cross-origin hosting still wo
 
 ## Conventions
 
-- When IIDX bumps version (33 → 34…), change `CONFIG.path` **and** `CONFIG.statusPath`
-  (profile/status page) in `constants.ts`.
+- When IIDX bumps version (33 → 34…), change `CONFIG.path`, `CONFIG.statusPath`
+  (profile/status page) **and** `CONFIG.errorPath` (paid-feature redirect target) in `constants.ts`.
+- Paid-feature (구독) pages redirect to `errorPath` (`error/error.html`). `fetchDoc` detects this
+  via the final `res.url` and throws `PaidFeatureError`: `crawl` aborts the whole run, `crawlProfile`
+  returns `null`, and `main.ts` shows a "베이직 코스 필요" panel.
 - Login page changes → only `LOGIN_URL` in `constants.ts`.
 - Keep `parser.ts`/`auth.ts` pure and DOM-injectable so they stay unit-testable; feed new
   eagate markup as a fixture under `test/fixtures/` rather than mocking inline.
