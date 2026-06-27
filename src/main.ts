@@ -1,12 +1,12 @@
 import { buildUI, showLoginRequired } from "./ui";
-import { crawl, countByStyle } from "./crawler";
+import { crawl, crawlProfile, countByStyle } from "./crawler";
 import { checkLogin } from "./auth";
 import { LOGIN_URL } from "./constants";
-import type { CrawlResult } from "./types";
+import type { FullResult } from "./types";
 
 declare global {
   interface Window {
-    __iidxData?: CrawlResult;
+    __iidxData?: FullResult;
   }
 }
 
@@ -27,13 +27,18 @@ declare global {
   const ui = buildUI();
   ui.log("로그인 확인됨" + (auth.konamiId ? " (" + auth.konamiId + ")" : ""), "ok");
 
-  const result = await crawl({
+  // 프로필(스테이터스) 먼저 수집 후 성적 크롤
+  ui.status("프로필 수집 중…");
+  const profile = await crawlProfile({ onLog: ui.log });
+
+  const scores = await crawl({
     onStatus: ui.status,
     onLog: ui.log,
     onProgress: ui.progress,
     onCounts: ui.counts,
   });
 
+  const result: FullResult = { profile, ...scores };
   window.__iidxData = result;
   const sp = countByStyle(result.SP);
   const dp = countByStyle(result.DP);

@@ -51,10 +51,18 @@ Because the logic runs in the eagate page context, cross-origin hosting still wo
 - `dev.ts` — **dev entry** (`index.html` loads this). Injects a mock `fetchImpl` that serves
   `test/fixtures/sample.html`; never hits eagate. Use this to preview UI/parser changes.
 - `crawler.ts` — `crawl()` orchestrates the fetch + pagination loop over styles × levels.
+  `crawlProfile()` fetches the single status page (`CONFIG.statusPath`) and returns a `Profile`
+  (or `null` on failure). `main.ts` merges both into `window.__iidxData` as `{ profile, SP, DP }`.
   `fetchImpl` is **dependency-injected** (defaults to global `fetch`) so tests and `dev.ts`
   can swap it. Pagination follows `.navi-next` with `offset += step`, throttled by `delay`,
   capped at `maxPages`. Empty levels are still emitted as `[]`.
-- `parser.ts` — **pure DOM functions** (`parseRow`, `parseDoc`), the main unit-test target.
+- `parser.ts` — **pure DOM functions** (`parseRow`, `parseDoc` for scores; `parseProfile` for the
+  status page → `Profile`), the main unit-test target. `parseProfile` uses English object keys but
+  preserves original (Japanese) values where they're free-form labels (e.g. `arenaClass.SP:"B4"`),
+  while numeric fields are parsed to numbers (`playCount:397` from "397回") and `段位認定` is mapped to
+  the `Dan` enum via the `DAN` table in `constants.ts` (`"十段"→"10TH_DAN"`, unranked→`null`). It
+  extracts only a subset of the status page (DJ NAME / IIDX ID / プレー回数 / ノーツレーダー / 段位認定 /
+  アリーナクラス).
   Scores are scraped from image filenames (grade `F`–`AAA`, lamp `clflg<n>`) and text. Brittle
   against eagate markup changes — fixtures pin the expected structure.
 - `auth.ts` — `checkLogin(doc)` inspects the header DOM for a filled KONAMI ID span. Pure /
@@ -66,7 +74,8 @@ Because the logic runs in the eagate page context, cross-origin hosting still wo
 
 ## Conventions
 
-- When IIDX bumps version (33 → 34…), change only `CONFIG.path` in `constants.ts`.
+- When IIDX bumps version (33 → 34…), change `CONFIG.path` **and** `CONFIG.statusPath`
+  (profile/status page) in `constants.ts`.
 - Login page changes → only `LOGIN_URL` in `constants.ts`.
 - Keep `parser.ts`/`auth.ts` pure and DOM-injectable so they stay unit-testable; feed new
   eagate markup as a fixture under `test/fixtures/` rather than mocking inline.

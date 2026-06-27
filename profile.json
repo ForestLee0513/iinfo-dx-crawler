@@ -1,0 +1,36 @@
+{
+  "profile": {
+    "communityNickname": "ForestLee",
+    "djName": "FRST-E",
+    "iidxId": "5858-2916",
+    "playCount": 397,
+    "notesRadar": {
+      "SP": {
+        "notes": 108.18,
+        "chord": 112.98,
+        "peak": 111.02,
+        "charge": 126.15,
+        "scratch": 119.04,
+        "softLan": 112.33,
+        "total": 689.70
+      },
+      "DP": {
+        "notes": 0.09,
+        "chord": 0.00,
+        "peak": 0.09,
+        "charge": 0.01,
+        "scratch": 0.00,
+        "softLan": 0.00,
+        "total": 0.19
+      }
+    },
+    "dan": {
+      "SP": "10TH_DAN",
+      "DP": null
+    },
+    "arenaClass": {
+      "SP": "B4",
+      "DP": "---"
+    }
+  }
+}

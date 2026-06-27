@@ -1,6 +1,13 @@
 import { CONFIG } from "./constants";
-import { parseDoc } from "./parser";
-import type { CrawlOptions, CrawlResult, FetchLike, LevelBucket } from "./types";
+import { parseDoc, parseProfile } from "./parser";
+import type {
+  CrawlOptions,
+  CrawlResult,
+  FetchLike,
+  LevelBucket,
+  Profile,
+  ProfileCrawlOptions,
+} from "./types";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -91,6 +98,34 @@ export async function crawl(opts: CrawlOptions = {}): Promise<CrawlResult> {
   }
 
   return result;
+}
+
+// 프로필(스테이터스) 페이지 한 장을 fetch + 파싱. 실패 시 null.
+export async function crawlProfile(
+  opts: ProfileCrawlOptions = {}
+): Promise<Profile | null> {
+  const {
+    origin = typeof location !== "undefined" ? location.origin : "",
+    fetchImpl = fetch as unknown as FetchLike,
+    onLog = () => {},
+  } = opts;
+
+  try {
+    const doc = await fetchDoc(origin + CONFIG.statusPath, fetchImpl);
+    const profile = parseProfile(doc);
+    if (!profile) {
+      onLog("프로필을 찾지 못했습니다 (.dj-status 없음)", "warn");
+      return null;
+    }
+    onLog(
+      "프로필 수집 완료" + (profile.djName ? " (" + profile.djName + ")" : ""),
+      "ok"
+    );
+    return profile;
+  } catch (e) {
+    onLog("프로필 실패: " + (e as Error).message, "warn");
+    return null;
+  }
 }
 
 // 한 style(레벨 객체) 안의 전체 곡 수
