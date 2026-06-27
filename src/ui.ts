@@ -36,6 +36,14 @@ export function showLoginRequired(loginUrl: string): void {
         font-size:12px; font-weight:600; color:#fff; background:#2a2e38; transition:.15s; }
       button:hover{ filter:brightness(1.2); }
       button.go{ background:#0a84ff; }
+      /* 모바일: 좌우 16px 여백으로 거의 전체 폭 사용 + 터치 타깃 확대 */
+      @media (max-width: 480px) {
+        .panel { width: calc(100vw - 32px); border-radius: 12px; }
+        .body { font-size: 14px; }
+        .hint { font-size: 13px; }
+        .ft { gap: 10px; }
+        button { padding: 13px; font-size: 13px; }
+      }
     </style>
     <div class="panel">
       <div class="hd">
@@ -103,6 +111,17 @@ export function buildUI(onClose?: () => void): UIHandle {
       button:hover:not(:disabled){ filter:brightness(1.2); }
       button:disabled{ opacity:.4; cursor:not-allowed; }
       button.copy{ background:#0a84ff; } button.dl{ background:#32894b; }
+      /* 모바일: 좌우 16px 여백으로 거의 전체 폭 사용 + 로그/터치 타깃 조정 */
+      @media (max-width: 480px) {
+        .panel { width: calc(100vw - 32px); }
+        .hd { cursor: default; } /* 모바일은 드래그 비활성 → 상단 고정 */
+        .status { font-size: 13px; }
+        .chip b { font-size: 20px; }
+        .chip span { font-size: 12px; }
+        .log { height: 120px; font-size: 12px; }
+        .ft { gap: 10px; }
+        button { padding: 12px; font-size: 13px; }
+      }
     </style>
     <div class="panel">
       <div class="hd" id="hd">
@@ -130,21 +149,32 @@ export function buildUI(onClose?: () => void): UIHandle {
     root.getElementById(id) as T;
   const logEl = $("log");
 
-  // 드래그 이동
-  {
+  // 드래그 이동 (Pointer Events → 마우스·터치 공통). 헤더에서 시작.
+  // 모바일(좁은 화면)에서는 드래그를 막고 상단에 고정한다.
+  const isMobile =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 480px)").matches;
+  if (!isMobile) {
     const hd = $("hd");
+    hd.style.touchAction = "none"; // 드래그 중 스크롤·제스처 방지(터치)
     let sx = 0, sy = 0, ox = 0, oy = 0, drag = false;
-    hd.addEventListener("mousedown", (e) => {
+    hd.addEventListener("pointerdown", (e) => {
       drag = true; sx = e.clientX; sy = e.clientY;
       const rect = host.getBoundingClientRect(); ox = rect.left; oy = rect.top;
       host.style.right = "auto";
+      hd.setPointerCapture?.(e.pointerId); // 헤더 밖으로 나가도 move/up 수신
     });
-    window.addEventListener("mousemove", (e) => {
+    hd.addEventListener("pointermove", (e) => {
       if (!drag) return;
       host.style.left = ox + e.clientX - sx + "px";
       host.style.top = oy + e.clientY - sy + "px";
     });
-    window.addEventListener("mouseup", () => { drag = false; });
+    const end = (e: PointerEvent) => {
+      drag = false;
+      hd.releasePointerCapture?.(e.pointerId);
+    };
+    hd.addEventListener("pointerup", end);
+    hd.addEventListener("pointercancel", end);
   }
 
   $("close").addEventListener("click", () => {
