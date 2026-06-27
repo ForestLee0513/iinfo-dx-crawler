@@ -1,7 +1,6 @@
 import { buildUI, showLoginRequired } from "./ui";
 import { crawl, countByStyle } from "./crawler";
 import { checkLogin } from "./auth";
-import { LOGIN_URL } from "./constants";
 import type { CrawlResult } from "./types";
 
 declare global {
@@ -20,7 +19,7 @@ declare global {
   // 로그인 검증 — 로그아웃이면 로그인 페이지로 유도 후 중단 (자동 재시작 불가)
   const auth = checkLogin();
   if (!auth.loggedIn) {
-    showLoginRequired(LOGIN_URL);
+    showLoginRequired();
     return;
   }
 
