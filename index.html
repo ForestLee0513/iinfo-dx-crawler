@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IIDX Crawler — dev</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        background: #fff;
+        color: #222;
+        padding: 40px;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      code {
+        background: #f1f1f1;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>IIDX Crawler — 개발 미리보기</h1>
+    <p>
+      오른쪽 위 팝업이 fixture 데이터로 동작합니다. 실제 배포 빌드는
+      <code>npm run build</code>.
+    </p>
+
+    <!-- checkLogin() 동작 확인용: 로그인 헤더 마크업 (제거하면 dev 에서 '로그아웃'으로 표시됨) -->
+    <div id="id_nav_menu_3" class="ea-menu" style="padding: 0; height: 12px">
+      <div class="ea_common_center" style="display: none">
+        <div class="cl_old_h1">
+          <a href="/"
+            ><img src="/img/ea_logo.png" alt="e-amusement" width="137px"
+          /></a>
+        </div>
+        <p>
+          <span
+            class="cl_ea_variable_document"
+            data-id="eavd_header_konamiid"
+            style="display: inline"
+          >
+            <a href="/gate/p/mypage/index.html">
+              <span class="cl_nav_menu_span" style="float: left; height: 30px">
+                <img
+                  src="/gate/img/profile/iidx/img01.jpg"
+                  style="height: 100%; margin: 0"
+                />
+              </span>
+            </a>
+            <span class="cl_nav_menu_span cl_pc_dsp" style="float: left"
+              >fores_xwhap75k3cwjth</span
+            >
+          </span>
+          <span class="cl_nav_menu_span" style="float: left">
+            <a class="open-menu" href="javascript:void(0)"
+              ><img src="/img/icon_menu.png" alt="menu" width="20px"
+            /></a>
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/dev.ts"></script>
+  </body>
+</html>
