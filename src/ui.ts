@@ -63,7 +63,8 @@ export function showLoginRequired(loginUrl: string): void {
 }
 
 // 페이지 CSS 와 격리된 진행 팝업 패널 (Shadow DOM)
-export function buildUI(): UIHandle {
+// onClose: 패널을 닫을 때(×) 호출 — 네비게이션 가드 해제 등에 사용.
+export function buildUI(onClose?: () => void): UIHandle {
   const { host, root } = createHost();
 
   root.innerHTML = `
@@ -146,7 +147,10 @@ export function buildUI(): UIHandle {
     window.addEventListener("mouseup", () => { drag = false; });
   }
 
-  $("close").addEventListener("click", () => host.remove());
+  $("close").addEventListener("click", () => {
+    host.remove();
+    onClose?.();
+  });
 
   return {
     host,

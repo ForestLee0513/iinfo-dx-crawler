@@ -1,6 +1,7 @@
 import { buildUI } from "./ui";
 import { crawl, crawlProfile, countByStyle } from "./crawler";
 import { checkLogin } from "./auth";
+import { installNavGuard } from "./guard";
 import type { FetchLike } from "./types";
 import sampleHtml from "../test/fixtures/sample.html?raw";
 import statusHtml from "../test/fixtures/status.html?raw";
@@ -23,9 +24,11 @@ const mockFetch: FetchLike = async (url) => {
 };
 
 (async function () {
+  // 북마크릿 시작 즉시 가드 설치, 패널 닫기로 해제 (프로덕션과 동일)
+  const releaseGuard = installNavGuard();
   // index.html 에 심어둔 로그인 헤더로 checkLogin 동작 확인
   const auth = checkLogin();
-  const ui = buildUI();
+  const ui = buildUI(releaseGuard);
   ui.log(
     "[DEV] checkLogin → " + (auth.loggedIn ? "로그인" : "로그아웃") +
       (auth.konamiId ? " (" + auth.konamiId + ")" : ""),
