@@ -12,30 +12,10 @@ function createHost(): { host: HTMLElement; root: ShadowRoot } {
   return { host, root: host.attachShadow({ mode: "open" }) };
 }
 
-// 원본 eagate 페이지가 제공하는 로그인 폼 표시 함수.
-// (페이지 컨텍스트에서 실행되므로 전역으로 접근 가능)
-declare global {
-  interface Window {
-    ea_common_template?: { login?: { show_loginform?: () => void } };
-  }
-}
-
-// 원본 eagate 페이지의 로그인 폼을 띄운다.
-// 로그인 URL 로 이동하면 세션 컨텍스트가 끊기므로, 페이지 이동 없이
-// 원본 사이트가 제공하는 함수만 실행한다. (호출 성공 여부 반환)
-export function openLoginForm(): boolean {
-  const fn = window.ea_common_template?.login?.show_loginform;
-  if (typeof fn === "function") {
-    fn();
-    return true;
-  }
-  return false;
-}
-
 // 로그아웃 상태 안내 패널.
-// 자동 재시작은 불가능하므로(주입 스크립트는 페이지 이동/리로드 시 사라짐),
-// 원본 사이트의 로그인 폼을 띄우고 "다시 실행"을 안내한다.
-export function showLoginRequired(): void {
+// 자동 재시작은 불가능하므로(주입 스크립트는 페이지 이동 시 사라짐),
+// 로그인 페이지로 유도하고 "다시 실행"을 안내한다.
+export function showLoginRequired(loginUrl: string): void {
   const { host, root } = createHost();
   root.innerHTML = `
     <style>
@@ -65,12 +45,11 @@ export function showLoginRequired(): void {
       <div class="body">
         <b>로그인이 필요합니다.</b><br>
         e-amusement 에 로그인되어 있지 않습니다.
-        <div class="hint"><b>로그인</b> 버튼을 누르면 이 페이지에 로그인 폼이 열립니다.
-        로그인이 끝나면 <b>이 북마크를 다시 클릭</b>해 주세요.
-        (자동 재시작은 지원되지 않습니다)</div>
+        <div class="hint">로그인 페이지로 이동한 뒤, 로그인이 끝나면
+        <b>이 북마크를 다시 클릭</b>해 주세요. (자동 재시작은 지원되지 않습니다)</div>
       </div>
       <div class="ft">
-        <button class="go" id="go">로그인</button>
+        <button class="go" id="go">로그인 페이지로 이동</button>
         <button id="close2">닫기</button>
       </div>
     </div>`;
@@ -79,12 +58,7 @@ export function showLoginRequired(): void {
   (root.getElementById("close") as HTMLElement).addEventListener("click", close);
   (root.getElementById("close2") as HTMLElement).addEventListener("click", close);
   (root.getElementById("go") as HTMLElement).addEventListener("click", () => {
-    // 원본 사이트의 로그인 폼 호출. 폼이 떠야 보이므로 안내 패널은 닫는다.
-    if (openLoginForm()) {
-      close();
-    } else {
-      alert("로그인 폼을 열 수 없습니다. p.eagate.573.jp 페이지에서 실행했는지 확인해 주세요.");
-    }
+    location.href = loginUrl;
   });
 }
 

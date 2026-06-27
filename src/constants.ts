@@ -42,3 +42,6 @@ export const CONFIG: Config = {
   maxPages: 60, // 무한루프 방지
   levels: 12, // difficult 0~11
 };
+
+// e-amusement 로그인 페이지. (변경되면 이 값만 수정)
+export const LOGIN_URL = "https://my.konami.net/ko/signin?isWebView=false";
