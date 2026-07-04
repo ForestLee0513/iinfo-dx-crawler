@@ -46,7 +46,7 @@ export async function fetchScoreCsv(
   const ta = doc.querySelector("#score_data") as HTMLTextAreaElement | null;
   const raw = ta ? ta.value || ta.textContent || "" : "";
   if (!raw.trim()) {
-    onLog(style + " score_download: #score_data 가 비어 있습니다", "warn");
+    onLog(style + "플레이 기록이 비어 있습니다", "warn");
     return "";
   }
 

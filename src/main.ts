@@ -47,8 +47,8 @@ declare global {
 
   try {
     // ── 1차: 공식 score_download.html 에서 CSV 직접 다운로드 (원본과 100% 동일) ──
-    ui.status("CSV 다운로드 중… (score_download)");
-    ui.log("score_download.html 에서 CSV 다운로드 요청", "hi");
+    ui.status("CSV 다운로드 중… (공식)");
+    ui.log("공식 CSV 다운로드 요청", "hi");
     const SP = await fetchScoreCsv("SP", { onLog: ui.log });
     ui.progress(0.5);
     const DP = await fetchScoreCsv("DP", { onLog: ui.log });
@@ -57,13 +57,13 @@ declare global {
     csv = { SP, DP };
     json = { profile, source: "score_download", csv: { SP, DP } };
     ui.counts(csvSongCount(SP), csvSongCount(DP));
-    ui.log("score_download 다운로드 완료", "hi");
+    ui.log("공식 CSV 다운로드 완료", "hi");
   } catch (e) {
     if (!(e instanceof PaidFeatureError)) throw e;
 
     // score_download 는 구독 미가입(error.html?err=5) → 기존 난이도표 크롤로 폴백.
     ui.log(
-      "score_download 접근 불가(구독 필요) → 난이도표 크롤로 대체합니다",
+      "공식 CSV 다운로드 페이지 접근 불가(프리미엄 코스 구독 필요) → 순회 크롤링 방식으로 변경",
       "warn",
     );
     ui.progress(0);

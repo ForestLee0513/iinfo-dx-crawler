@@ -89,7 +89,7 @@ export function buildUI(onClose?: () => void): UIHandle {
         border: 1px solid #2c2f37; border-radius: 14px; overflow: hidden;
         box-shadow: 0 12px 40px rgba(0,0,0,.45); font-size: 13px; }
       .hd { display: flex; align-items: center; gap: 8px; padding: 12px 14px;
-        background: linear-gradient(135deg,#1f2330,#171a22); cursor: move; user-select: none; }
+        background: linear-gradient(135deg,#1f2330,#171a22); user-select: none; }
       .dot { width: 9px; height: 9px; border-radius: 50%; background:#ff9f0a; box-shadow:0 0 8px #ff9f0a; }
       .dot.run { animation: pulse 1s infinite; }
       .dot.done { background:#32d74b; box-shadow:0 0 8px #32d74b; }
@@ -131,7 +131,6 @@ export function buildUI(onClose?: () => void): UIHandle {
       /* 모바일: 좌우 16px 여백으로 거의 전체 폭 사용 + 로그/터치 타깃 조정 */
       @media (max-width: 480px) {
         .panel { width: calc(100vw - 32px); }
-        .hd { cursor: default; } /* 모바일은 드래그 비활성 → 상단 고정 */
         .status { font-size: 13px; }
         .chip b { font-size: 20px; }
         .chip span { font-size: 12px; }
@@ -166,42 +165,6 @@ export function buildUI(onClose?: () => void): UIHandle {
   const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
     root.getElementById(id) as T;
   const logEl = $("log");
-
-  // 드래그 이동 (Pointer Events → 마우스·터치 공통). 헤더에서 시작.
-  // 모바일(좁은 화면)에서는 드래그를 막고 상단에 고정한다.
-  const isMobile =
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 480px)").matches;
-  if (!isMobile) {
-    const hd = $("hd");
-    hd.style.touchAction = "none"; // 드래그 중 스크롤·제스처 방지(터치)
-    let sx = 0,
-      sy = 0,
-      ox = 0,
-      oy = 0,
-      drag = false;
-    hd.addEventListener("pointerdown", (e) => {
-      drag = true;
-      sx = e.clientX;
-      sy = e.clientY;
-      const rect = host.getBoundingClientRect();
-      ox = rect.left;
-      oy = rect.top;
-      host.style.right = "auto";
-      hd.setPointerCapture?.(e.pointerId); // 헤더 밖으로 나가도 move/up 수신
-    });
-    hd.addEventListener("pointermove", (e) => {
-      if (!drag) return;
-      host.style.left = ox + e.clientX - sx + "px";
-      host.style.top = oy + e.clientY - sy + "px";
-    });
-    const end = (e: PointerEvent) => {
-      drag = false;
-      hd.releasePointerCapture?.(e.pointerId);
-    };
-    hd.addEventListener("pointerup", end);
-    hd.addEventListener("pointercancel", end);
-  }
 
   $("close").addEventListener("click", () => {
     host.remove();
