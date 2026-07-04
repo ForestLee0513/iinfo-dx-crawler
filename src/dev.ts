@@ -1,27 +1,40 @@
 import { buildUI } from "./ui";
-import { crawl, crawlProfile, countByStyle } from "./crawler";
+import { crawlProfile } from "./crawler";
+import { fetchScoreCsv, csvSongCount } from "./scoreDownload";
 import { checkLogin } from "./auth";
 import { installNavGuard } from "./guard";
-import type { FetchLike } from "./types";
+import type { DonePayload, FetchLike } from "./types";
 import sampleHtml from "../test/fixtures/sample.html?raw";
 import statusHtml from "../test/fixtures/status.html?raw";
+import scoreHtml from "../test/fixtures/score_download.html?raw";
 
 // 로컬 개발용: eagate 에 접속하지 않고 fixture HTML 로 UI/로직을 테스트.
-const endHtml = sampleHtml.replace(/<div class="navi-next">[\s\S]*?<\/div>/, "");
+const endHtml = sampleHtml.replace(
+  /<div class="navi-next">[\s\S]*?<\/div>/,
+  "",
+);
 
 const mockFetch: FetchLike = async (url) => {
   await new Promise((r) => setTimeout(r, 30));
+  // 공식 CSV 다운로드 페이지 → score_download fixture 반환 (1차 경로 미리보기)
+  if (url.includes("score_download.html")) {
+    return { ok: true, status: 200, url, text: async () => scoreHtml };
+  }
   // 스테이터스(프로필) 페이지 요청이면 status fixture 반환
   if (url.includes("status.html")) {
-    return { ok: true, status: 200, text: async () => statusHtml };
+    return { ok: true, status: 200, url, text: async () => statusHtml };
   }
+  // (폴백 경로용) 난이도표 페이지
   const isFirst = /offset=0(\b|&|$)/.test(url);
   return {
     ok: true,
     status: 200,
+    url,
     text: async () => (isFirst ? sampleHtml : endHtml),
   };
 };
+
+const origin = "https://p.eagate.573.jp";
 
 (async function () {
   // 북마크릿 시작 즉시 가드 설치, 패널 닫기로 해제 (프로덕션과 동일)
@@ -30,31 +43,40 @@ const mockFetch: FetchLike = async (url) => {
   const auth = checkLogin();
   const ui = buildUI(releaseGuard);
   ui.log(
-    "[DEV] checkLogin → " + (auth.loggedIn ? "로그인" : "로그아웃") +
+    "[DEV] checkLogin → " +
+      (auth.loggedIn ? "로그인" : "로그아웃") +
       (auth.konamiId ? " (" + auth.konamiId + ")" : ""),
-    auth.loggedIn ? "ok" : "warn"
+    auth.loggedIn ? "ok" : "warn",
   );
 
   const profile = await crawlProfile({
-    origin: "https://p.eagate.573.jp",
+    origin,
     fetchImpl: mockFetch,
     onLog: ui.log,
   });
 
-  const scores = await crawl({
-    origin: "https://p.eagate.573.jp",
+  // 1차: score_download 미리보기 (fixture)
+  ui.status("[DEV] score_download CSV 다운로드…");
+  const SP = await fetchScoreCsv("SP", {
+    origin,
     fetchImpl: mockFetch,
-    delay: 0,
-    onStatus: ui.status,
     onLog: ui.log,
-    onProgress: ui.progress,
-    onCounts: ui.counts,
+  });
+  const DP = await fetchScoreCsv("DP", {
+    origin,
+    fetchImpl: mockFetch,
+    onLog: ui.log,
   });
 
-  const result = { profile, ...scores };
-  (window as unknown as { __iidxData: unknown }).__iidxData = result;
-  ui.status("[DEV] 완료 — SP " + countByStyle(result.SP) + " / DP " + countByStyle(result.DP));
-  ui.log("[DEV] mock 크롤 완료", "hi");
-  ui.done(result);
-  console.log("[IIDX][DEV]", result);
+  const json = { profile, source: "score_download", csv: { SP, DP } };
+  (window as unknown as { __iidxData: unknown }).__iidxData = json;
+  ui.counts(csvSongCount(SP), csvSongCount(DP));
+  ui.progress(1);
+  ui.status(
+    "[DEV] 완료 — SP " + csvSongCount(SP) + " / DP " + csvSongCount(DP),
+  );
+  ui.log("[DEV] mock score_download 완료", "hi");
+  const payload: DonePayload = { csv: { SP, DP }, json };
+  ui.done(payload);
+  console.log("[IIDX][DEV]", json);
 })();

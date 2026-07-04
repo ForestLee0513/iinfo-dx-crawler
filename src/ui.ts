@@ -1,4 +1,4 @@
-import type { LogClass, UIHandle } from "./types";
+import type { DonePayload, LogClass, UIHandle } from "./types";
 
 // 공통: 격리된 호스트 + 그림자 루트 생성 (기존 패널 제거)
 function createHost(): { host: HTMLElement; root: ShadowRoot } {
@@ -47,7 +47,7 @@ export function showLoginRequired(loginUrl: string): void {
     </style>
     <div class="panel">
       <div class="hd">
-        <span class="dot"></span><span class="ttl">IIDX Crawler</span>
+        <span class="dot"></span><span class="ttl">IInfoDX Crawler</span>
         <span class="x" id="close">×</span>
       </div>
       <div class="body">
@@ -63,8 +63,14 @@ export function showLoginRequired(loginUrl: string): void {
     </div>`;
 
   const close = () => host.remove();
-  (root.getElementById("close") as HTMLElement).addEventListener("click", close);
-  (root.getElementById("close2") as HTMLElement).addEventListener("click", close);
+  (root.getElementById("close") as HTMLElement).addEventListener(
+    "click",
+    close,
+  );
+  (root.getElementById("close2") as HTMLElement).addEventListener(
+    "click",
+    close,
+  );
   (root.getElementById("go") as HTMLElement).addEventListener("click", () => {
     location.href = loginUrl;
   });
@@ -83,7 +89,7 @@ export function buildUI(onClose?: () => void): UIHandle {
         border: 1px solid #2c2f37; border-radius: 14px; overflow: hidden;
         box-shadow: 0 12px 40px rgba(0,0,0,.45); font-size: 13px; }
       .hd { display: flex; align-items: center; gap: 8px; padding: 12px 14px;
-        background: linear-gradient(135deg,#1f2330,#171a22); cursor: move; user-select: none; }
+        background: linear-gradient(135deg,#1f2330,#171a22); user-select: none; }
       .dot { width: 9px; height: 9px; border-radius: 50%; background:#ff9f0a; box-shadow:0 0 8px #ff9f0a; }
       .dot.run { animation: pulse 1s infinite; }
       .dot.done { background:#32d74b; box-shadow:0 0 8px #32d74b; }
@@ -111,10 +117,20 @@ export function buildUI(onClose?: () => void): UIHandle {
       button:hover:not(:disabled){ filter:brightness(1.2); }
       button:disabled{ opacity:.4; cursor:not-allowed; }
       button.copy{ background:#0a84ff; } button.dl{ background:#32894b; }
+      /* CSV 영역 (완료 시 표시) */
+      .csvwrap { margin-top:10px; display:none; }
+      .csvwrap.on { display:block; }
+      .csvblock { margin-top:8px; }
+      .csvblock .row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+      .csvblock .lbl { font-size:11px; color:#8a90a0; flex:1; }
+      .csvblock button.csvcopy { flex:0 0 auto; padding:5px 10px; font-size:11px; background:#8a5cf6; }
+      .csvblock textarea { width:100%; height:70px; resize:vertical; background:#0b0d11;
+        border:1px solid #20242c; border-radius:9px; padding:8px; color:#9aa3b2;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size:10px; line-height:1.4;
+        white-space:pre; overflow:auto; }
       /* 모바일: 좌우 16px 여백으로 거의 전체 폭 사용 + 로그/터치 타깃 조정 */
       @media (max-width: 480px) {
         .panel { width: calc(100vw - 32px); }
-        .hd { cursor: default; } /* 모바일은 드래그 비활성 → 상단 고정 */
         .status { font-size: 13px; }
         .chip b { font-size: 20px; }
         .chip span { font-size: 12px; }
@@ -126,7 +142,7 @@ export function buildUI(onClose?: () => void): UIHandle {
     <div class="panel">
       <div class="hd" id="hd">
         <span class="dot run" id="dot"></span>
-        <span class="ttl">IIDX Crawler</span>
+        <span class="ttl">IInfoDX Crawler</span>
         <span class="x" id="close">×</span>
       </div>
       <div class="body">
@@ -138,44 +154,17 @@ export function buildUI(onClose?: () => void): UIHandle {
           <div class="chip"><b id="cDP">0</b><span>DP 곡</span></div>
         </div>
         <div class="log" id="log"></div>
+        <div class="csvwrap" id="csvwrap"></div>
       </div>
       <div class="ft">
         <button class="copy" id="copy" disabled>JSON 복사</button>
-        <button class="dl" id="dl" disabled>다운로드</button>
+        <button class="dl" id="dl" disabled>JSON 다운로드</button>
       </div>
     </div>`;
 
   const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
     root.getElementById(id) as T;
   const logEl = $("log");
-
-  // 드래그 이동 (Pointer Events → 마우스·터치 공통). 헤더에서 시작.
-  // 모바일(좁은 화면)에서는 드래그를 막고 상단에 고정한다.
-  const isMobile =
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 480px)").matches;
-  if (!isMobile) {
-    const hd = $("hd");
-    hd.style.touchAction = "none"; // 드래그 중 스크롤·제스처 방지(터치)
-    let sx = 0, sy = 0, ox = 0, oy = 0, drag = false;
-    hd.addEventListener("pointerdown", (e) => {
-      drag = true; sx = e.clientX; sy = e.clientY;
-      const rect = host.getBoundingClientRect(); ox = rect.left; oy = rect.top;
-      host.style.right = "auto";
-      hd.setPointerCapture?.(e.pointerId); // 헤더 밖으로 나가도 move/up 수신
-    });
-    hd.addEventListener("pointermove", (e) => {
-      if (!drag) return;
-      host.style.left = ox + e.clientX - sx + "px";
-      host.style.top = oy + e.clientY - sy + "px";
-    });
-    const end = (e: PointerEvent) => {
-      drag = false;
-      hd.releasePointerCapture?.(e.pointerId);
-    };
-    hd.addEventListener("pointerup", end);
-    hd.addEventListener("pointercancel", end);
-  }
 
   $("close").addEventListener("click", () => {
     host.remove();
@@ -184,7 +173,9 @@ export function buildUI(onClose?: () => void): UIHandle {
 
   return {
     host,
-    status: (t: string) => { $("status").textContent = t; },
+    status: (t: string) => {
+      $("status").textContent = t;
+    },
     progress: (f: number) => {
       const p = Math.round(f * 100);
       ($("bar") as HTMLDivElement).style.width = p + "%";
@@ -205,26 +196,70 @@ export function buildUI(onClose?: () => void): UIHandle {
       $("dot").className = "dot err";
       if (msg) $("status").textContent = msg;
     },
-    done: (data: unknown) => {
+    done: (data: DonePayload) => {
       $("dot").className = "dot done";
       const copy = $<HTMLButtonElement>("copy");
       const dl = $<HTMLButtonElement>("dl");
       copy.disabled = false;
       dl.disabled = false;
+      const jsonText = JSON.stringify(data.json, null, 2);
       copy.addEventListener("click", () => {
-        navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
+        navigator.clipboard.writeText(jsonText).then(() => {
           copy.textContent = "복사됨!";
-          setTimeout(() => { copy.textContent = "JSON 복사"; }, 1500);
+          setTimeout(() => {
+            copy.textContent = "JSON 복사";
+          }, 1500);
         });
       });
+      // 다운로드는 JSON 만 지원.
       dl.addEventListener("click", () => {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const blob = new Blob([jsonText], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = "iidx_scores.json";
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       });
+      // CSV(eagate 스코어데이터 형식)는 다운로드 대신 TextArea + 복사 버튼으로 제공.
+      // SP/DP 각각 CSV 문자열이 있을 때만 블록을 만든다.
+      const wrap = $("csvwrap");
+      wrap.textContent = "";
+      for (const style of ["SP", "DP"] as const) {
+        const text = data.csv[style];
+        if (!text || !text.trim()) continue;
+
+        const block = document.createElement("div");
+        block.className = "csvblock";
+
+        const row = document.createElement("div");
+        row.className = "row";
+        const lbl = document.createElement("span");
+        lbl.className = "lbl";
+        lbl.textContent = style + " CSV";
+        const btn = document.createElement("button");
+        btn.className = "csvcopy";
+        btn.textContent = "복사";
+        btn.addEventListener("click", () => {
+          navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = "복사됨!";
+            setTimeout(() => {
+              btn.textContent = "복사";
+            }, 1500);
+          });
+        });
+        row.appendChild(lbl);
+        row.appendChild(btn);
+
+        const ta = document.createElement("textarea");
+        ta.readOnly = true;
+        ta.value = text;
+        ta.addEventListener("focus", () => ta.select());
+
+        block.appendChild(row);
+        block.appendChild(ta);
+        wrap.appendChild(block);
+      }
+      if (wrap.childElementCount > 0) wrap.classList.add("on");
     },
   };
 }

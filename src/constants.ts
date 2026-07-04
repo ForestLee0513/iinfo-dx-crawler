@@ -15,6 +15,27 @@ export const LAMP: Record<number, Lamp> = {
 // 알파벳 점수로 인정할 값 (이미지 파일명 기준)
 export const GRADES: Grade[] = ["F", "E", "D", "C", "B", "A", "AA", "AAA"];
 
+// eagate 스코어데이터 CSV 의 난이도 컬럼 순서 (곡당 1행 · 5개 난이도)
+export const CSV_DIFFICULTIES = [
+  "BEGINNER",
+  "NORMAL",
+  "HYPER",
+  "ANOTHER",
+  "LEGGENDARIA",
+] as const;
+
+// 내부 램프 → eagate CSV "クリアタイプ" 표기
+export const CLEAR_TYPE_CSV: Record<Lamp, string> = {
+  "NO-PLAY": "NO PLAY",
+  FAILED: "FAILED",
+  "A-CLEAR": "ASSIST CLEAR",
+  "E-CLEAR": "EASY CLEAR",
+  CLEAR: "CLEAR",
+  "H-CLEAR": "HARD CLEAR",
+  "EXH-CLEAR": "EX HARD CLEAR",
+  "F-COMBO": "FULLCOMBO CLEAR",
+};
+
 // 段位認定 라벨(일본어) → Dan enum. (iidx.org/dan/sparkleshower 기준)
 export const DAN: Record<string, Dan> = {
   七級: "7TH_KYU",
@@ -46,6 +67,7 @@ export interface StyleDef {
 export interface Config {
   path: string;
   statusPath: string;
+  scorePath: string;
   errorPath: string;
   styles: StyleDef[];
   disp: number;
@@ -58,6 +80,9 @@ export interface Config {
 export const CONFIG: Config = {
   path: "/game/2dx/33/djdata/music/difficulty.html",
   statusPath: "/game/2dx/33/djdata/status.html", // 프로필(스테이터스) 페이지
+  // 공식 CSV 다운로드 페이지. style=SP|DP 로 POST 하면 응답 HTML 의
+  // textarea#score_data 에 전체 CSV 가 들어온다. (구독 미가입 시 error.html?err=5 로 리다이렉트)
+  scorePath: "/game/2dx/33/djdata/score_download.html",
   // 베이직 코스 미구독 시 eagate 가 리다이렉트하는 에러 페이지(경로만 비교).
   // 예: /game/2dx/33/error/error.html?err=1
   errorPath: "/game/2dx/33/error/error.html",

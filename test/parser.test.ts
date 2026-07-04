@@ -32,7 +32,7 @@ describe("parseDoc (실제 fixture)", () => {
     expect(rows[0]).toEqual({
       title: "Astra Blaze",
       difficulty: "ANOTHER",
-      score: { lamp: "FAILED", exScore: 2076, grade: "B" },
+      score: { lamp: "FAILED", exScore: 2076, grade: "B", pgreat: 783, great: 510 },
     });
   });
 

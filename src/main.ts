@@ -1,13 +1,15 @@
 import { buildUI, showLoginRequired } from "./ui";
 import { crawl, crawlProfile, countByStyle, PaidFeatureError } from "./crawler";
+import { fetchScoreCsv, csvSongCount } from "./scoreDownload";
+import { buildStyleCsv } from "./csv";
 import { checkLogin } from "./auth";
 import { installNavGuard } from "./guard";
 import { LOGIN_URL } from "./constants";
-import type { FullResult } from "./types";
+import type { DonePayload } from "./types";
 
 declare global {
   interface Window {
-    __iidxData?: FullResult;
+    __iidxData?: unknown;
   }
 }
 
@@ -36,37 +38,68 @@ declare global {
   );
   ui.log("페이지를 떠나면 진행 상황/결과가 사라집니다 (닫기로 해제)", "warn");
 
-  // 프로필(스테이터스) 먼저 수집 후 성적 크롤
+  // 프로필(스테이터스) 먼저 수집
   ui.status("프로필 수집 중…");
   const profile = await crawlProfile({ onLog: ui.log });
 
-  let scores;
+  let csv: { SP?: string; DP?: string };
+  let json: unknown;
+
   try {
-    scores = await crawl({
-      onStatus: ui.status,
-      onLog: ui.log,
-      onProgress: ui.progress,
-      onCounts: ui.counts,
-    });
+    // ── 1차: 공식 score_download.html 에서 CSV 직접 다운로드 (원본과 100% 동일) ──
+    ui.status("CSV 다운로드 중… (공식)");
+    ui.log("공식 CSV 다운로드 요청", "hi");
+    const SP = await fetchScoreCsv("SP", { onLog: ui.log });
+    ui.progress(0.5);
+    const DP = await fetchScoreCsv("DP", { onLog: ui.log });
+    ui.progress(1);
+
+    csv = { SP, DP };
+    json = { profile, source: "score_download", csv: { SP, DP } };
+    ui.counts(csvSongCount(SP), csvSongCount(DP));
+    ui.log("공식 CSV 다운로드 완료", "hi");
   } catch (e) {
-    // 베이직 코스 미구독 → 성적표 접근 불가. 안내 후 중단(주입 스크립트라 자동 재시도 불가).
-    if (e instanceof PaidFeatureError) {
-      ui.fail("베이직 코스(구독)이 필요합니다");
-      ui.log(
-        "성적표 페이지는 e-Amusement 베이직 코스 구독이 필요합니다. 구독 후 다시 실행해 주세요.",
-        "warn",
-      );
-      return;
+    if (!(e instanceof PaidFeatureError)) throw e;
+
+    // score_download 는 구독 미가입(error.html?err=5) → 기존 난이도표 크롤로 폴백.
+    ui.log(
+      "공식 CSV 다운로드 페이지 접근 불가(프리미엄 코스 구독 필요) → 순회 크롤링 방식으로 변경",
+      "warn",
+    );
+    ui.progress(0);
+    try {
+      const scores = await crawl({
+        onStatus: ui.status,
+        onLog: ui.log,
+        onProgress: ui.progress,
+        onCounts: ui.counts,
+      });
+      csv = {
+        SP: buildStyleCsv(scores.SP),
+        DP: buildStyleCsv(scores.DP),
+      };
+      json = { profile, source: "difficulty_crawl", ...scores };
+      ui.counts(countByStyle(scores.SP), countByStyle(scores.DP));
+    } catch (e2) {
+      // 난이도표마저 구독 미가입으로 막힘 → 안내 후 중단(주입 스크립트라 자동 재시도 불가).
+      if (e2 instanceof PaidFeatureError) {
+        ui.fail("베이직 코스(구독)이 필요합니다");
+        ui.log(
+          "성적표 페이지는 e-Amusement 베이직 코스 구독이 필요합니다. 구독 후 다시 실행해 주세요.",
+          "warn",
+        );
+        return;
+      }
+      throw e2;
     }
-    throw e;
   }
 
-  const result: FullResult = { profile, ...scores };
-  window.__iidxData = result;
-  const sp = countByStyle(result.SP);
-  const dp = countByStyle(result.DP);
-  ui.status("완료 — SP " + sp + "곡 / DP " + dp + "곡");
-  ui.log("완료! 총 " + (sp + dp) + "곡", "hi");
-  ui.done(result);
-  console.log("[IIDX] window.__iidxData:", result);
+  window.__iidxData = json;
+  const payload: DonePayload = { csv, json };
+  const spN = csv.SP ? csvSongCount(csv.SP) : 0;
+  const dpN = csv.DP ? csvSongCount(csv.DP) : 0;
+  ui.status("완료 — SP " + spN + "곡 / DP " + dpN + "곡");
+  ui.log("완료! 총 " + (spN + dpN) + "곡", "hi");
+  ui.done(payload);
+  console.log("[IIDX] window.__iidxData:", json);
 })();
