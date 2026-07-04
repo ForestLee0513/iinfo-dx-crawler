@@ -95,7 +95,13 @@ export interface ParsedPage {
 // 테스트에서 가짜 구현을 주입하기 쉽게, 사용하는 멤버만 요구한다.
 export type FetchLike = (
   url: string,
-  init?: { credentials?: RequestCredentials }
+  init?: {
+    credentials?: RequestCredentials;
+    // score_download.html POST(style=SP|DP) 용
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+  }
 ) => Promise<{
   ok: boolean;
   status: number;
@@ -127,12 +133,19 @@ export interface ProfileCrawlOptions {
 
 export type LogClass = "ok" | "warn" | "hi";
 
+// done() 에 넘기는 최종 결과. csv 는 score_download 원본(우선) 또는
+// 난이도표 크롤에서 재구성한 CSV 문자열. json 은 복사/다운로드/window.__iidxData 용.
+export interface DonePayload {
+  csv: { SP?: string; DP?: string };
+  json: unknown;
+}
+
 export interface UIHandle {
   host: HTMLElement;
   status: (text: string) => void;
   progress: (fraction: number) => void;
   counts: (sp: number, dp: number) => void;
   log: (text: string, cls?: LogClass) => void;
-  done: (data: FullResult) => void;
+  done: (data: DonePayload) => void;
   fail: (msg?: string) => void; // 오류 상태(빨간 점)로 전환 + 선택적 상태 문구
 }

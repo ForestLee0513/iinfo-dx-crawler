@@ -46,8 +46,11 @@ Because the logic runs in the eagate page context, cross-origin hosting still wo
 
 ## Module layout (`src/`)
 
-- `main.ts` — **production entry** (the bundled one). Guards hostname, runs `checkLogin`, then
-  `crawl`, then renders UI. Exposes result on `window.__iidxData`.
+- `main.ts` — **production entry** (the bundled one). Guards hostname, runs `checkLogin`,
+  `crawlProfile`, then the two-tier score flow (`fetchScoreCsv` → fallback `crawl`; see
+  Conventions), then renders UI via `ui.done({ csv, json })`. Exposes result on `window.__iidxData`.
+- `scoreDownload.ts` — `fetchScoreCsv(style)` POSTs to `CONFIG.scorePath` and extracts the CSV
+  from `textarea#score_data` (`fetchImpl`-injectable). `csvSongCount(csv)` counts data rows.
 - `dev.ts` — **dev entry** (`index.html` loads this). Injects a mock `fetchImpl` that serves
   `test/fixtures/sample.html`; never hits eagate. Use this to preview UI/parser changes.
 - `crawler.ts` — `crawl()` orchestrates the fetch + pagination loop over styles × levels.
@@ -75,7 +78,14 @@ Because the logic runs in the eagate page context, cross-origin hosting still wo
 ## Conventions
 
 - When IIDX bumps version (33 → 34…), change `CONFIG.path`, `CONFIG.statusPath`
-  (profile/status page) **and** `CONFIG.errorPath` (paid-feature redirect target) in `constants.ts`.
+  (profile/status page), `CONFIG.scorePath` (official CSV download page) **and**
+  `CONFIG.errorPath` (paid-feature redirect target) in `constants.ts`.
+- **Score source is two-tier.** `main.ts` first tries `scoreDownload.ts` `fetchScoreCsv(style)`
+  — POSTs `style=SP|DP` to `CONFIG.scorePath` and reads the full CSV from `textarea#score_data`
+  (byte-identical to eagate's native download: BOM + LF). If that redirects to `errorPath`
+  (`?err=5`, 구독 미가입) it throws `PaidFeatureError`; `main.ts` catches it and **falls back**
+  to the difficulty-table crawl (`crawl()` → `buildStyleCsv`, which can't see unplayed charts'
+  levels). Only if the crawl *also* hits `PaidFeatureError` is the "베이직 코스 필요" panel shown.
 - Paid-feature (구독) pages redirect to `errorPath` (`error/error.html`). `fetchDoc` detects this
   via the final `res.url` and throws `PaidFeatureError`: `crawl` aborts the whole run, `crawlProfile`
   returns `null`, and `main.ts` shows a "베이직 코스 필요" panel.

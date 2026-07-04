@@ -67,6 +67,7 @@ export interface StyleDef {
 export interface Config {
   path: string;
   statusPath: string;
+  scorePath: string;
   errorPath: string;
   styles: StyleDef[];
   disp: number;
@@ -79,6 +80,9 @@ export interface Config {
 export const CONFIG: Config = {
   path: "/game/2dx/33/djdata/music/difficulty.html",
   statusPath: "/game/2dx/33/djdata/status.html", // 프로필(스테이터스) 페이지
+  // 공식 CSV 다운로드 페이지. style=SP|DP 로 POST 하면 응답 HTML 의
+  // textarea#score_data 에 전체 CSV 가 들어온다. (구독 미가입 시 error.html?err=5 로 리다이렉트)
+  scorePath: "/game/2dx/33/djdata/score_download.html",
   // 베이직 코스 미구독 시 eagate 가 리다이렉트하는 에러 페이지(경로만 비교).
   // 예: /game/2dx/33/error/error.html?err=1
   errorPath: "/game/2dx/33/error/error.html",

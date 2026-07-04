@@ -1,10 +1,4 @@
-import type { FullResult, LogClass, UIHandle } from "./types";
-import { buildStyleCsv } from "./csv";
-
-// 곡이 하나라도 있는 style 인지 (없으면 CSV 영역을 만들지 않는다)
-function hasSongs(byLevel: FullResult["SP"]): boolean {
-  return Object.values(byLevel).some((arr) => arr.length > 0);
-}
+import type { DonePayload, LogClass, UIHandle } from "./types";
 
 // 공통: 격리된 호스트 + 그림자 루트 생성 (기존 패널 제거)
 function createHost(): { host: HTMLElement; root: ShadowRoot } {
@@ -239,27 +233,24 @@ export function buildUI(onClose?: () => void): UIHandle {
       $("dot").className = "dot err";
       if (msg) $("status").textContent = msg;
     },
-    done: (data: FullResult) => {
+    done: (data: DonePayload) => {
       $("dot").className = "dot done";
       const copy = $<HTMLButtonElement>("copy");
       const dl = $<HTMLButtonElement>("dl");
       copy.disabled = false;
       dl.disabled = false;
+      const jsonText = JSON.stringify(data.json, null, 2);
       copy.addEventListener("click", () => {
-        navigator.clipboard
-          .writeText(JSON.stringify(data, null, 2))
-          .then(() => {
-            copy.textContent = "복사됨!";
-            setTimeout(() => {
-              copy.textContent = "JSON 복사";
-            }, 1500);
-          });
+        navigator.clipboard.writeText(jsonText).then(() => {
+          copy.textContent = "복사됨!";
+          setTimeout(() => {
+            copy.textContent = "JSON 복사";
+          }, 1500);
+        });
       });
       // 다운로드는 JSON 만 지원.
       dl.addEventListener("click", () => {
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-          type: "application/json",
-        });
+        const blob = new Blob([jsonText], { type: "application/json" });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = "iidx_scores.json";
@@ -267,12 +258,12 @@ export function buildUI(onClose?: () => void): UIHandle {
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       });
       // CSV(eagate 스코어데이터 형식)는 다운로드 대신 TextArea + 복사 버튼으로 제공.
-      // SP/DP 각각 곡이 있을 때만 블록을 만든다.
+      // SP/DP 각각 CSV 문자열이 있을 때만 블록을 만든다.
       const wrap = $("csvwrap");
       wrap.textContent = "";
       for (const style of ["SP", "DP"] as const) {
-        if (!hasSongs(data[style])) continue;
-        const text = buildStyleCsv(data[style]);
+        const text = data.csv[style];
+        if (!text || !text.trim()) continue;
 
         const block = document.createElement("div");
         block.className = "csvblock";
