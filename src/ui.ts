@@ -53,7 +53,7 @@ export function showLoginRequired(loginUrl: string): void {
     </style>
     <div class="panel">
       <div class="hd">
-        <span class="dot"></span><span class="ttl">IIDX Crawler</span>
+        <span class="dot"></span><span class="ttl">IInfoDX Crawler</span>
         <span class="x" id="close">×</span>
       </div>
       <div class="body">
@@ -69,8 +69,14 @@ export function showLoginRequired(loginUrl: string): void {
     </div>`;
 
   const close = () => host.remove();
-  (root.getElementById("close") as HTMLElement).addEventListener("click", close);
-  (root.getElementById("close2") as HTMLElement).addEventListener("click", close);
+  (root.getElementById("close") as HTMLElement).addEventListener(
+    "click",
+    close,
+  );
+  (root.getElementById("close2") as HTMLElement).addEventListener(
+    "click",
+    close,
+  );
   (root.getElementById("go") as HTMLElement).addEventListener("click", () => {
     location.href = loginUrl;
   });
@@ -143,7 +149,7 @@ export function buildUI(onClose?: () => void): UIHandle {
     <div class="panel">
       <div class="hd" id="hd">
         <span class="dot run" id="dot"></span>
-        <span class="ttl">IIDX Crawler</span>
+        <span class="ttl">IInfoDX Crawler</span>
         <span class="x" id="close">×</span>
       </div>
       <div class="body">
@@ -175,10 +181,18 @@ export function buildUI(onClose?: () => void): UIHandle {
   if (!isMobile) {
     const hd = $("hd");
     hd.style.touchAction = "none"; // 드래그 중 스크롤·제스처 방지(터치)
-    let sx = 0, sy = 0, ox = 0, oy = 0, drag = false;
+    let sx = 0,
+      sy = 0,
+      ox = 0,
+      oy = 0,
+      drag = false;
     hd.addEventListener("pointerdown", (e) => {
-      drag = true; sx = e.clientX; sy = e.clientY;
-      const rect = host.getBoundingClientRect(); ox = rect.left; oy = rect.top;
+      drag = true;
+      sx = e.clientX;
+      sy = e.clientY;
+      const rect = host.getBoundingClientRect();
+      ox = rect.left;
+      oy = rect.top;
       host.style.right = "auto";
       hd.setPointerCapture?.(e.pointerId); // 헤더 밖으로 나가도 move/up 수신
     });
@@ -202,7 +216,9 @@ export function buildUI(onClose?: () => void): UIHandle {
 
   return {
     host,
-    status: (t: string) => { $("status").textContent = t; },
+    status: (t: string) => {
+      $("status").textContent = t;
+    },
     progress: (f: number) => {
       const p = Math.round(f * 100);
       ($("bar") as HTMLDivElement).style.width = p + "%";
@@ -230,14 +246,20 @@ export function buildUI(onClose?: () => void): UIHandle {
       copy.disabled = false;
       dl.disabled = false;
       copy.addEventListener("click", () => {
-        navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(() => {
-          copy.textContent = "복사됨!";
-          setTimeout(() => { copy.textContent = "JSON 복사"; }, 1500);
-        });
+        navigator.clipboard
+          .writeText(JSON.stringify(data, null, 2))
+          .then(() => {
+            copy.textContent = "복사됨!";
+            setTimeout(() => {
+              copy.textContent = "JSON 복사";
+            }, 1500);
+          });
       });
       // 다운로드는 JSON 만 지원.
       dl.addEventListener("click", () => {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: "application/json",
+        });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = "iidx_scores.json";
@@ -259,14 +281,16 @@ export function buildUI(onClose?: () => void): UIHandle {
         row.className = "row";
         const lbl = document.createElement("span");
         lbl.className = "lbl";
-        lbl.textContent = style + " CSV (eagate 스코어데이터)";
+        lbl.textContent = style + " CSV";
         const btn = document.createElement("button");
         btn.className = "csvcopy";
         btn.textContent = "복사";
         btn.addEventListener("click", () => {
           navigator.clipboard.writeText(text).then(() => {
             btn.textContent = "복사됨!";
-            setTimeout(() => { btn.textContent = "복사"; }, 1500);
+            setTimeout(() => {
+              btn.textContent = "복사";
+            }, 1500);
           });
         });
         row.appendChild(lbl);
