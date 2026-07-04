@@ -34,9 +34,14 @@ export function parseRow(tr: Element): SongEntry | null {
     ? (gradeName as Grade)
     : null;
 
-  // 숫자 점수: <br> 앞의 정수 (EX SCORE), 없으면 null
-  const m = (tds[3].textContent || "").trim().match(/\d+/);
+  // 숫자 점수: 셀은 "2076<br>(783/510)" 형태 → 앞의 정수 = EX SCORE,
+  // 괄호 안 "(PGreat/Great)" 를 각각 추출. 값이 없으면 모두 null.
+  const scoreText = (tds[3].textContent || "").trim();
+  const m = scoreText.match(/\d+/);
   const exScore = m ? parseInt(m[0], 10) : null;
+  const pgm = scoreText.match(/\((\d+)\s*\/\s*(\d+)\)/);
+  const pgreat = pgm ? parseInt(pgm[1], 10) : null;
+  const great = pgm ? parseInt(pgm[2], 10) : null;
 
   // 램프: clflg<n>.gif
   const lImg = tds[4].querySelector("img");
@@ -46,7 +51,7 @@ export function parseRow(tr: Element): SongEntry | null {
     if (lm) lamp = LAMP[parseInt(lm[1], 10)] ?? null;
   }
 
-  return { title, difficulty, score: { lamp, exScore, grade } };
+  return { title, difficulty, score: { lamp, exScore, grade, pgreat, great } };
 }
 
 // 문서 전체 → { rows, hasNext }

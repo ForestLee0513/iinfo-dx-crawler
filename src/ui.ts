@@ -1,4 +1,10 @@
-import type { LogClass, UIHandle } from "./types";
+import type { FullResult, LogClass, UIHandle } from "./types";
+import { buildStyleCsv } from "./csv";
+
+// 곡이 하나라도 있는 style 인지 (없으면 CSV 영역을 만들지 않는다)
+function hasSongs(byLevel: FullResult["SP"]): boolean {
+  return Object.values(byLevel).some((arr) => arr.length > 0);
+}
 
 // 공통: 격리된 호스트 + 그림자 루트 생성 (기존 패널 제거)
 function createHost(): { host: HTMLElement; root: ShadowRoot } {
@@ -111,6 +117,17 @@ export function buildUI(onClose?: () => void): UIHandle {
       button:hover:not(:disabled){ filter:brightness(1.2); }
       button:disabled{ opacity:.4; cursor:not-allowed; }
       button.copy{ background:#0a84ff; } button.dl{ background:#32894b; }
+      /* CSV 영역 (완료 시 표시) */
+      .csvwrap { margin-top:10px; display:none; }
+      .csvwrap.on { display:block; }
+      .csvblock { margin-top:8px; }
+      .csvblock .row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+      .csvblock .lbl { font-size:11px; color:#8a90a0; flex:1; }
+      .csvblock button.csvcopy { flex:0 0 auto; padding:5px 10px; font-size:11px; background:#8a5cf6; }
+      .csvblock textarea { width:100%; height:70px; resize:vertical; background:#0b0d11;
+        border:1px solid #20242c; border-radius:9px; padding:8px; color:#9aa3b2;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size:10px; line-height:1.4;
+        white-space:pre; overflow:auto; }
       /* 모바일: 좌우 16px 여백으로 거의 전체 폭 사용 + 로그/터치 타깃 조정 */
       @media (max-width: 480px) {
         .panel { width: calc(100vw - 32px); }
@@ -138,10 +155,11 @@ export function buildUI(onClose?: () => void): UIHandle {
           <div class="chip"><b id="cDP">0</b><span>DP 곡</span></div>
         </div>
         <div class="log" id="log"></div>
+        <div class="csvwrap" id="csvwrap"></div>
       </div>
       <div class="ft">
         <button class="copy" id="copy" disabled>JSON 복사</button>
-        <button class="dl" id="dl" disabled>다운로드</button>
+        <button class="dl" id="dl" disabled>JSON 다운로드</button>
       </div>
     </div>`;
 
@@ -205,7 +223,7 @@ export function buildUI(onClose?: () => void): UIHandle {
       $("dot").className = "dot err";
       if (msg) $("status").textContent = msg;
     },
-    done: (data: unknown) => {
+    done: (data: FullResult) => {
       $("dot").className = "dot done";
       const copy = $<HTMLButtonElement>("copy");
       const dl = $<HTMLButtonElement>("dl");
@@ -217,6 +235,7 @@ export function buildUI(onClose?: () => void): UIHandle {
           setTimeout(() => { copy.textContent = "JSON 복사"; }, 1500);
         });
       });
+      // 다운로드는 JSON 만 지원.
       dl.addEventListener("click", () => {
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const a = document.createElement("a");
@@ -225,6 +244,44 @@ export function buildUI(onClose?: () => void): UIHandle {
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       });
+      // CSV(eagate 스코어데이터 형식)는 다운로드 대신 TextArea + 복사 버튼으로 제공.
+      // SP/DP 각각 곡이 있을 때만 블록을 만든다.
+      const wrap = $("csvwrap");
+      wrap.textContent = "";
+      for (const style of ["SP", "DP"] as const) {
+        if (!hasSongs(data[style])) continue;
+        const text = buildStyleCsv(data[style]);
+
+        const block = document.createElement("div");
+        block.className = "csvblock";
+
+        const row = document.createElement("div");
+        row.className = "row";
+        const lbl = document.createElement("span");
+        lbl.className = "lbl";
+        lbl.textContent = style + " CSV (eagate 스코어데이터)";
+        const btn = document.createElement("button");
+        btn.className = "csvcopy";
+        btn.textContent = "복사";
+        btn.addEventListener("click", () => {
+          navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = "복사됨!";
+            setTimeout(() => { btn.textContent = "복사"; }, 1500);
+          });
+        });
+        row.appendChild(lbl);
+        row.appendChild(btn);
+
+        const ta = document.createElement("textarea");
+        ta.readOnly = true;
+        ta.value = text;
+        ta.addEventListener("focus", () => ta.select());
+
+        block.appendChild(row);
+        block.appendChild(ta);
+        wrap.appendChild(block);
+      }
+      if (wrap.childElementCount > 0) wrap.classList.add("on");
     },
   };
 }

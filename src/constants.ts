@@ -15,6 +15,27 @@ export const LAMP: Record<number, Lamp> = {
 // 알파벳 점수로 인정할 값 (이미지 파일명 기준)
 export const GRADES: Grade[] = ["F", "E", "D", "C", "B", "A", "AA", "AAA"];
 
+// eagate 스코어데이터 CSV 의 난이도 컬럼 순서 (곡당 1행 · 5개 난이도)
+export const CSV_DIFFICULTIES = [
+  "BEGINNER",
+  "NORMAL",
+  "HYPER",
+  "ANOTHER",
+  "LEGGENDARIA",
+] as const;
+
+// 내부 램프 → eagate CSV "クリアタイプ" 표기
+export const CLEAR_TYPE_CSV: Record<Lamp, string> = {
+  "NO-PLAY": "NO PLAY",
+  FAILED: "FAILED",
+  "A-CLEAR": "ASSIST CLEAR",
+  "E-CLEAR": "EASY CLEAR",
+  CLEAR: "CLEAR",
+  "H-CLEAR": "HARD CLEAR",
+  "EXH-CLEAR": "EX HARD CLEAR",
+  "F-COMBO": "FULLCOMBO CLEAR",
+};
+
 // 段位認定 라벨(일본어) → Dan enum. (iidx.org/dan/sparkleshower 기준)
 export const DAN: Record<string, Dan> = {
   七級: "7TH_KYU",

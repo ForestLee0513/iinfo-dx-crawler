@@ -39,6 +39,8 @@ export interface Score {
   lamp: Lamp | null;
   exScore: number | null; // EX SCORE
   grade: Grade | null; // 중도 종료 시 null
+  pgreat: number | null; // 점수 셀 "(783/510)" 의 앞값. 없으면 null
+  great: number | null; // 점수 셀 "(783/510)" 의 뒷값. 없으면 null
 }
 
 export interface SongEntry {
@@ -131,6 +133,6 @@ export interface UIHandle {
   progress: (fraction: number) => void;
   counts: (sp: number, dp: number) => void;
   log: (text: string, cls?: LogClass) => void;
-  done: (data: unknown) => void;
+  done: (data: FullResult) => void;
   fail: (msg?: string) => void; // 오류 상태(빨간 점)로 전환 + 선택적 상태 문구
 }
