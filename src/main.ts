@@ -5,6 +5,7 @@ import { buildStyleCsv } from "./csv";
 import { checkLogin } from "./auth";
 import { installNavGuard } from "./guard";
 import { LOGIN_URL } from "./constants";
+import { uploadCsv, syncProfile } from "./api";
 import type { DonePayload } from "./types";
 
 declare global {
@@ -20,16 +21,12 @@ declare global {
     return;
   }
 
-  // 로그인 검증 — 로그아웃이면 로그인 페이지로 유도 후 중단 (자동 재시작 불가)
   const auth = checkLogin();
   if (!auth.loggedIn) {
     showLoginRequired(LOGIN_URL);
     return;
   }
 
-  // 북마크릿이 시작되는 즉시 네비게이션 가드 설치 —
-  // 실수로 링크 클릭·새로고침 시 컨텍스트(주입 스크립트)가 사라지는 것을 막는다.
-  // 패널을 닫으면(×) 해제되어 자유롭게 이동할 수 있다.
   const releaseGuard = installNavGuard();
   const ui = buildUI(releaseGuard);
   ui.log(
@@ -38,7 +35,6 @@ declare global {
   );
   ui.log("페이지를 떠나면 진행 상황/결과가 사라집니다 (닫기로 해제)", "warn");
 
-  // 프로필(스테이터스) 먼저 수집
   ui.status("프로필 수집 중…");
   const profile = await crawlProfile({ onLog: ui.log });
 
@@ -46,7 +42,7 @@ declare global {
   let json: unknown;
 
   try {
-    // ── 1차: 공식 score_download.html 에서 CSV 직접 다운로드 (원본과 100% 동일) ──
+    // ── 1차: 공식 score_download.html 에서 CSV 직접 다운로드 ──
     ui.status("CSV 다운로드 중… (공식)");
     ui.log("공식 CSV 다운로드 요청", "hi");
     const SP = await fetchScoreCsv("SP", { onLog: ui.log });
@@ -61,7 +57,6 @@ declare global {
   } catch (e) {
     if (!(e instanceof PaidFeatureError)) throw e;
 
-    // score_download 는 구독 미가입(error.html?err=5) → 기존 난이도표 크롤로 폴백.
     ui.log(
       "공식 CSV 다운로드 페이지 접근 불가(프리미엄 코스 구독 필요) → 순회 크롤링 방식으로 변경",
       "warn",
@@ -81,7 +76,6 @@ declare global {
       json = { profile, source: "difficulty_crawl", ...scores };
       ui.counts(countByStyle(scores.SP), countByStyle(scores.DP));
     } catch (e2) {
-      // 난이도표마저 구독 미가입으로 막힘 → 안내 후 중단(주입 스크립트라 자동 재시도 불가).
       if (e2 instanceof PaidFeatureError) {
         ui.fail("베이직 코스(구독)이 필요합니다");
         ui.log(
@@ -101,5 +95,46 @@ declare global {
   ui.status("완료 — SP " + spN + "곡 / DP " + dpN + "곡");
   ui.log("완료! 총 " + (spN + dpN) + "곡", "hi");
   ui.done(payload);
+
+  // ── 업로드 토큰이 입력된 경우 서버에 자동 업로드 ──
+  const token = ui.getToken();
+  if (token) {
+    ui.log("── 서버 업로드 시작 ──", "hi");
+
+    // CSV 업로드 (SP → DP 순)
+    for (const style of ["SP", "DP"] as const) {
+      const text = csv[style];
+      if (!text || !text.trim()) continue;
+      try {
+        ui.status(style + " 업로드 중…");
+        const result = await uploadCsv(token, style, text);
+        if (result.changed) {
+          ui.log(
+            style + " 업로드 완료 (" + result.song_count + "곡, id: " + result.upload_id.slice(0, 8) + "…)",
+            "ok",
+          );
+        } else {
+          ui.log(style + " 업로드: 이전과 동일한 내용 — 스냅샷 미생성", "warn");
+        }
+      } catch (err) {
+        ui.log(String(err), "warn");
+      }
+    }
+
+    // 프로필 동기화
+    if (profile) {
+      try {
+        ui.status("프로필 동기화 중…");
+        await syncProfile(token, profile);
+        ui.log("프로필 동기화 완료 (DJ NAME: " + (profile.djName || "?") + ")", "ok");
+      } catch (err) {
+        ui.log(String(err), "warn");
+      }
+    }
+
+    ui.status("서버 업로드 완료");
+    ui.log("── 업로드 완료 ──", "hi");
+  }
+
   console.log("[IIDX] window.__iidxData:", json);
 })();

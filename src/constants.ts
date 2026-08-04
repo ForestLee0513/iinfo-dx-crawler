@@ -100,3 +100,9 @@ export const CONFIG: Config = {
 // e-amusement 로그인 페이지. (변경되면 이 값만 수정)
 export const LOGIN_URL =
   "https://p.eagate.573.jp/gate/p/login.html?path=/game/2dx/33/";
+
+// 빌드 타임에 vite define으로 주입된다 (API_BASE 환경변수).
+// 개발 환경에서는 빈 문자열 — 업로드 기능을 테스트하려면 직접 수정.
+declare const __API_BASE__: string;
+export const API_BASE: string =
+  typeof __API_BASE__ !== "undefined" ? __API_BASE__ : "";

@@ -13,8 +13,6 @@ function createHost(): { host: HTMLElement; root: ShadowRoot } {
 }
 
 // 로그아웃 상태 안내 패널.
-// 자동 재시작은 불가능하므로(주입 스크립트는 페이지 이동 시 사라짐),
-// 로그인 페이지로 유도하고 "다시 실행"을 안내한다.
 export function showLoginRequired(loginUrl: string): void {
   const { host, root } = createHost();
   root.innerHTML = `
@@ -36,7 +34,6 @@ export function showLoginRequired(loginUrl: string): void {
         font-size:12px; font-weight:600; color:#fff; background:#2a2e38; transition:.15s; }
       button:hover{ filter:brightness(1.2); }
       button.go{ background:#0a84ff; }
-      /* 모바일: 좌우 16px 여백으로 거의 전체 폭 사용 + 터치 타깃 확대 */
       @media (max-width: 480px) {
         .panel { width: calc(100vw - 32px); border-radius: 12px; }
         .body { font-size: 14px; }
@@ -63,21 +60,14 @@ export function showLoginRequired(loginUrl: string): void {
     </div>`;
 
   const close = () => host.remove();
-  (root.getElementById("close") as HTMLElement).addEventListener(
-    "click",
-    close,
-  );
-  (root.getElementById("close2") as HTMLElement).addEventListener(
-    "click",
-    close,
-  );
+  (root.getElementById("close") as HTMLElement).addEventListener("click", close);
+  (root.getElementById("close2") as HTMLElement).addEventListener("click", close);
   (root.getElementById("go") as HTMLElement).addEventListener("click", () => {
     location.href = loginUrl;
   });
 }
 
-// 페이지 CSS 와 격리된 진행 팝업 패널 (Shadow DOM)
-// onClose: 패널을 닫을 때(×) 호출 — 네비게이션 가드 해제 등에 사용.
+// 페이지 CSS와 격리된 진행 팝업 패널 (Shadow DOM)
 export function buildUI(onClose?: () => void): UIHandle {
   const { host, root } = createHost();
 
@@ -99,6 +89,14 @@ export function buildUI(onClose?: () => void): UIHandle {
       .x { cursor:pointer; opacity:.6; font-size:18px; line-height:1; padding:0 4px; }
       .x:hover { opacity:1; }
       .body { padding: 12px 14px; }
+      /* 토큰 입력 */
+      .token-wrap { margin-bottom: 10px; }
+      .token-lbl { font-size: 11px; color: #8a90a0; margin-bottom: 4px; display: block; }
+      .token-input { width: 100%; background: #0e1014; border: 1px solid #2c2f37;
+        border-radius: 9px; padding: 8px 10px; color: #e7e9ee; font-size: 12px;
+        outline: none; transition: border-color .15s; }
+      .token-input:focus { border-color: #0a84ff; }
+      .token-input::placeholder { color: #4a505c; }
       .status { font-size:12px; color:#aeb4c0; margin-bottom:8px; min-height:16px; }
       .barwrap { height:8px; background:#0e1014; border-radius:6px; overflow:hidden; }
       .bar { height:100%; width:0%; background:linear-gradient(90deg,#0a84ff,#32d74b); transition:width .25s; }
@@ -116,19 +114,7 @@ export function buildUI(onClose?: () => void): UIHandle {
         font-size:12px; font-weight:600; color:#fff; background:#2a2e38; transition:.15s; }
       button:hover:not(:disabled){ filter:brightness(1.2); }
       button:disabled{ opacity:.4; cursor:not-allowed; }
-      button.copy{ background:#0a84ff; } button.dl{ background:#32894b; }
-      /* CSV 영역 (완료 시 표시) */
-      .csvwrap { margin-top:10px; display:none; }
-      .csvwrap.on { display:block; }
-      .csvblock { margin-top:8px; }
-      .csvblock .row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-      .csvblock .lbl { font-size:11px; color:#8a90a0; flex:1; }
-      .csvblock button.csvcopy { flex:0 0 auto; padding:5px 10px; font-size:11px; background:#8a5cf6; }
-      .csvblock textarea { width:100%; height:70px; resize:vertical; background:#0b0d11;
-        border:1px solid #20242c; border-radius:9px; padding:8px; color:#9aa3b2;
-        font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size:10px; line-height:1.4;
-        white-space:pre; overflow:auto; }
-      /* 모바일: 좌우 16px 여백으로 거의 전체 폭 사용 + 로그/터치 타깃 조정 */
+      button.dl{ background:#32894b; }
       @media (max-width: 480px) {
         .panel { width: calc(100vw - 32px); }
         .status { font-size: 13px; }
@@ -137,6 +123,7 @@ export function buildUI(onClose?: () => void): UIHandle {
         .log { height: 120px; font-size: 12px; }
         .ft { gap: 10px; }
         button { padding: 12px; font-size: 13px; }
+        .token-input { font-size: 13px; }
       }
     </style>
     <div class="panel">
@@ -146,6 +133,11 @@ export function buildUI(onClose?: () => void): UIHandle {
         <span class="x" id="close">×</span>
       </div>
       <div class="body">
+        <div class="token-wrap">
+          <label class="token-lbl" for="token-input">IInfoDX 업로드 토큰 (선택)</label>
+          <input id="token-input" class="token-input" type="text"
+            placeholder="토큰을 붙여넣으면 크롤 완료 후 자동으로 서버에 업로드됩니다" />
+        </div>
         <div class="status" id="status">준비 중…</div>
         <div class="barwrap"><div class="bar" id="bar"></div></div>
         <div class="pct" id="pct">0%</div>
@@ -154,10 +146,8 @@ export function buildUI(onClose?: () => void): UIHandle {
           <div class="chip"><b id="cDP">0</b><span>DP 곡</span></div>
         </div>
         <div class="log" id="log"></div>
-        <div class="csvwrap" id="csvwrap"></div>
       </div>
       <div class="ft">
-        <button class="copy" id="copy" disabled>JSON 복사</button>
         <button class="dl" id="dl" disabled>JSON 다운로드</button>
       </div>
     </div>`;
@@ -196,22 +186,14 @@ export function buildUI(onClose?: () => void): UIHandle {
       $("dot").className = "dot err";
       if (msg) $("status").textContent = msg;
     },
+    getToken: () => {
+      return ($<HTMLInputElement>("token-input")).value.trim();
+    },
     done: (data: DonePayload) => {
       $("dot").className = "dot done";
-      const copy = $<HTMLButtonElement>("copy");
       const dl = $<HTMLButtonElement>("dl");
-      copy.disabled = false;
       dl.disabled = false;
       const jsonText = JSON.stringify(data.json, null, 2);
-      copy.addEventListener("click", () => {
-        navigator.clipboard.writeText(jsonText).then(() => {
-          copy.textContent = "복사됨!";
-          setTimeout(() => {
-            copy.textContent = "JSON 복사";
-          }, 1500);
-        });
-      });
-      // 다운로드는 JSON 만 지원.
       dl.addEventListener("click", () => {
         const blob = new Blob([jsonText], { type: "application/json" });
         const a = document.createElement("a");
@@ -220,46 +202,6 @@ export function buildUI(onClose?: () => void): UIHandle {
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       });
-      // CSV(eagate 스코어데이터 형식)는 다운로드 대신 TextArea + 복사 버튼으로 제공.
-      // SP/DP 각각 CSV 문자열이 있을 때만 블록을 만든다.
-      const wrap = $("csvwrap");
-      wrap.textContent = "";
-      for (const style of ["SP", "DP"] as const) {
-        const text = data.csv[style];
-        if (!text || !text.trim()) continue;
-
-        const block = document.createElement("div");
-        block.className = "csvblock";
-
-        const row = document.createElement("div");
-        row.className = "row";
-        const lbl = document.createElement("span");
-        lbl.className = "lbl";
-        lbl.textContent = style + " CSV";
-        const btn = document.createElement("button");
-        btn.className = "csvcopy";
-        btn.textContent = "복사";
-        btn.addEventListener("click", () => {
-          navigator.clipboard.writeText(text).then(() => {
-            btn.textContent = "복사됨!";
-            setTimeout(() => {
-              btn.textContent = "복사";
-            }, 1500);
-          });
-        });
-        row.appendChild(lbl);
-        row.appendChild(btn);
-
-        const ta = document.createElement("textarea");
-        ta.readOnly = true;
-        ta.value = text;
-        ta.addEventListener("focus", () => ta.select());
-
-        block.appendChild(row);
-        block.appendChild(ta);
-        wrap.appendChild(block);
-      }
-      if (wrap.childElementCount > 0) wrap.classList.add("on");
     },
   };
 }

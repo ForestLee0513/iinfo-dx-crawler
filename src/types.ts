@@ -148,4 +148,14 @@ export interface UIHandle {
   log: (text: string, cls?: LogClass) => void;
   done: (data: DonePayload) => void;
   fail: (msg?: string) => void; // 오류 상태(빨간 점)로 전환 + 선택적 상태 문구
+  getToken: () => string; // 토큰 입력창 현재 값 (없으면 빈 문자열)
+}
+
+// 백엔드 POST /iidx/scores/upload 응답
+export interface ApiUploadResult {
+  upload_id: string;
+  play_style: string;
+  source: string;
+  song_count: number;
+  changed: boolean;
 }
