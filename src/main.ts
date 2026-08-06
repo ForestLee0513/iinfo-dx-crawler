@@ -5,7 +5,7 @@ import { buildStyleCsv } from "./csv";
 import { checkLogin } from "./auth";
 import { installNavGuard } from "./guard";
 import { LOGIN_URL } from "./constants";
-import { uploadCsv } from "./api";
+import { uploadScores } from "./api";
 import type { DonePayload } from "./types";
 
 declare global {
@@ -44,6 +44,7 @@ declare global {
 
   let csv: { SP?: string; DP?: string };
   let json: unknown;
+  let source: "score_download" | "difficulty_crawl";
 
   try {
     // ── 1차: 공식 score_download.html 에서 CSV 직접 다운로드 ──
@@ -55,7 +56,8 @@ declare global {
     ui.progress(1);
 
     csv = { SP, DP };
-    json = { profile, source: "score_download", csv: { SP, DP } };
+    source = "score_download";
+    json = { profile, source, csv: { SP, DP } };
     ui.counts(csvSongCount(SP), csvSongCount(DP));
     ui.log("공식 CSV 다운로드 완료", "hi");
   } catch (e) {
@@ -77,7 +79,8 @@ declare global {
         SP: buildStyleCsv(scores.SP),
         DP: buildStyleCsv(scores.DP),
       };
-      json = { profile, source: "difficulty_crawl", ...scores };
+      source = "difficulty_crawl";
+      json = { profile, source, ...scores };
       ui.counts(countByStyle(scores.SP), countByStyle(scores.DP));
     } catch (e2) {
       if (e2 instanceof PaidFeatureError) {
@@ -101,29 +104,32 @@ declare global {
   ui.done(payload);
 
   // ── 서버 업로드 (토큰은 시작 게이트에서 항상 입력됨) ──
-  // 성적 CSV 업로드 요청에 프로필을 함께 실어 한 번에 동기화한다.
+  // SP/DP 성적과 프로필을 한 번의 JSON 요청으로 함께 업로드·동기화한다.
   ui.log("── 서버 업로드 시작 ──", "hi");
 
-  // CSV 업로드 (SP → DP 순). 프로필은 첫 업로드 요청에만 붙여 한 번만 동기화한다.
-  let profileSynced = false;
-  for (const style of ["SP", "DP"] as const) {
-    const text = csv[style];
-    if (!text || !text.trim()) continue;
+  // 빈 스타일은 제외하고 있는 스타일만 실어 보낸다 (백엔드는 최소 하나 필수).
+  const csvToUpload: { SP?: string; DP?: string } = {};
+  if (csv.SP && csv.SP.trim()) csvToUpload.SP = csv.SP;
+  if (csv.DP && csv.DP.trim()) csvToUpload.DP = csv.DP;
+
+  if (!csvToUpload.SP && !csvToUpload.DP) {
+    ui.log("업로드할 성적이 없습니다", "warn");
+  } else {
     try {
-      ui.status(style + " 업로드 중…");
-      const profileToSync = profileSynced ? null : profile;
-      const result = await uploadCsv(token, style, text, profileToSync);
-      if (profileToSync) {
-        profileSynced = true;
-        ui.log("프로필 동기화 완료 (DJ NAME: " + (profile?.djName || "?") + ")", "ok");
+      ui.status("성적 업로드 중…");
+      const results = await uploadScores(token, csvToUpload, profile, source);
+      if (profile) {
+        ui.log("프로필 동기화 완료 (DJ NAME: " + (profile.djName || "?") + ")", "ok");
       }
-      if (result.changed) {
-        ui.log(
-          style + " 업로드 완료 (" + result.song_count + "곡, id: " + result.upload_id.slice(0, 8) + "…)",
-          "ok",
-        );
-      } else {
-        ui.log(style + " 업로드: 이전과 동일한 내용 — 스냅샷 미생성", "warn");
+      for (const result of results) {
+        if (result.changed) {
+          ui.log(
+            result.play_style + " 업로드 완료 (" + result.song_count + "곡, id: " + result.upload_id.slice(0, 8) + "…)",
+            "ok",
+          );
+        } else {
+          ui.log(result.play_style + " 업로드: 이전과 동일한 내용 — 스냅샷 미생성", "warn");
+        }
       }
     } catch (err) {
       ui.log(String(err), "warn");

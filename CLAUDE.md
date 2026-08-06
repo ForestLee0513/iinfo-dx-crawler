@@ -50,10 +50,10 @@ Because the logic runs in the eagate page context, cross-origin hosting still wo
   **waits on a token gate** (`ui.waitForStart()` — resolves only after the user enters an upload
   token and clicks [데이터 갱신] / presses Enter; nothing is crawled before this). Then
   `crawlProfile`, the two-tier score flow (`fetchScoreCsv` → fallback `crawl`; see Conventions),
-  renders UI via `ui.done({ csv, json })`, and **always uploads** the CSV to the backend using the
-  gate token via `uploadCsv` — the crawled profile rides along in the **same** multipart request
-  (attached to the first CSV upload only), so scores + profile sync in one call. Exposes result on
-  `window.__iidxData`.
+  renders UI via `ui.done({ csv, json })`, and **always uploads** to the backend using the gate
+  token via `uploadScores` — a **single JSON request** carrying both SP/DP CSVs plus the crawled
+  profile, so scores + profile sync in one call (no per-style requests, so the token can't expire
+  mid-upload). Exposes result on `window.__iidxData`.
 - `scoreDownload.ts` — `fetchScoreCsv(style)` POSTs to `CONFIG.scorePath` and extracts the CSV
   from `textarea#score_data` (`fetchImpl`-injectable). `csvSongCount(csv)` counts data rows.
 - `dev.ts` — **dev entry** (`index.html` loads this). Injects a mock `fetchImpl` that serves

@@ -153,11 +153,17 @@ export interface UIHandle {
   waitForStart: () => Promise<string>;
 }
 
-// 백엔드 POST /iidx/scores/upload 응답
+// 백엔드 POST /iidx/scores/upload 의 스타일별 단일 업로드 결과 (UploadResponse)
 export interface ApiUploadResult {
   upload_id: string;
   play_style: string;
   source: string;
   song_count: number;
+  uploaded_at?: string | null;
   changed: boolean;
+}
+
+// POST /iidx/scores/upload 응답 (MultiUploadResponse) — 업로드된 스타일별 결과 목록
+export interface ApiMultiUploadResult {
+  results: ApiUploadResult[];
 }

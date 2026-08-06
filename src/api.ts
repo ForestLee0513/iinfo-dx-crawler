@@ -7,39 +7,43 @@
  */
 
 import { API_BASE } from "./constants";
-import type { ApiUploadResult, Profile } from "./types";
+import type { ApiMultiUploadResult, ApiUploadResult, Profile } from "./types";
 
 function headers(token: string, extra?: Record<string, string>): Record<string, string> {
   return { "X-Upload-Token": token, ...extra };
 }
 
 /**
- * eagate 성적 CSV를 업로드한다.
+ * eagate 성적을 SP/DP 한 번의 JSON 요청으로 업로드한다.
  *
- * profile 을 함께 넘기면 성적·프로필을 이 한 번의 요청에서 동기화한다
- * (multipart 의 `profile` 필드에 크롤러 Profile JSON 문자열로 전송).
- * 별도의 프로필 동기화 호출은 더 이상 필요 없다.
+ * `csv.SP` / `csv.DP` 중 있는 스타일만 처리되며(최소 하나 필수), profile 을 함께
+ * 넘기면 성적·프로필을 이 한 번의 요청에서 동기화한다. 스타일별로 두 번 호출하지
+ * 않으므로 첫 호출에서 토큰이 만료돼 두 번째가 실패하던 문제가 없다.
  *
  * @param token 업로드 토큰
- * @param style "SP" | "DP"
- * @param csvText CSV 문자열 (BOM 포함 가능)
+ * @param csv 스타일별 CSV 문자열 (BOM 포함 가능, 최소 하나)
  * @param profile 함께 동기화할 크롤러 프로필 (선택)
+ * @param source CSV 출처 참고용 라벨 (선택, 백엔드는 저장에 사용하지 않음)
+ * @returns 업로드된 스타일별 결과 목록
  */
-export async function uploadCsv(
+export async function uploadScores(
   token: string,
-  style: "SP" | "DP",
-  csvText: string,
+  csv: { SP?: string; DP?: string },
   profile?: Profile | null,
-): Promise<ApiUploadResult> {
-  const form = new FormData();
-  const blob = new Blob([csvText], { type: "text/csv; charset=utf-8" });
-  form.append("file", blob, `${style}.csv`);
-  if (profile) form.append("profile", JSON.stringify(profile));
+  source?: string,
+): Promise<ApiUploadResult[]> {
+  const body: {
+    csv: { SP?: string; DP?: string };
+    profile?: Profile;
+    source?: string;
+  } = { csv };
+  if (profile) body.profile = profile;
+  if (source) body.source = source;
 
-  const res = await fetch(`${API_BASE}/iidx/scores/upload?style=${style}`, {
+  const res = await fetch(`${API_BASE}/iidx/scores/upload`, {
     method: "POST",
-    headers: headers(token),
-    body: form,
+    headers: headers(token, { "Content-Type": "application/json" }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -50,8 +54,9 @@ export async function uploadCsv(
     } catch {
       /* 무시 */
     }
-    throw new Error(`CSV 업로드 실패 (${style}): ${detail}`);
+    throw new Error(`성적 업로드 실패: ${detail}`);
   }
 
-  return (await res.json()) as ApiUploadResult;
+  const json = (await res.json()) as ApiMultiUploadResult;
+  return json.results;
 }
