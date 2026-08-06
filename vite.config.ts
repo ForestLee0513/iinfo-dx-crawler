@@ -1,9 +1,9 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 
-// API_BASE 환경변수 미지정 시 빌드 타임 오류를 내지 않고 http://localhost:8000으로 둔다.
+// API_BASE 환경변수 미지정 시 빌드 타임 오류를 내지 않고 http://localhost:8000/api/v1으로 둔다.
 // CI에서 API_BASE=https://api.example.com/api/v1 로 넘기면 번들에 하드코딩된다.
-const apiBase = process.env.API_BASE ?? "http://localhost:8000";
+const apiBase = process.env.API_BASE ?? "http://localhost:8000/api/v1";
 
 export default defineConfig({
   define: {
