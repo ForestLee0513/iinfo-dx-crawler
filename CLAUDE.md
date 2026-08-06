@@ -46,13 +46,19 @@ Because the logic runs in the eagate page context, cross-origin hosting still wo
 
 ## Module layout (`src/`)
 
-- `main.ts` — **production entry** (the bundled one). Guards hostname, runs `checkLogin`,
-  `crawlProfile`, then the two-tier score flow (`fetchScoreCsv` → fallback `crawl`; see
-  Conventions), then renders UI via `ui.done({ csv, json })`. Exposes result on `window.__iidxData`.
+- `main.ts` — **production entry** (the bundled one). Guards hostname, runs `checkLogin`, then
+  **waits on a token gate** (`ui.waitForStart()` — resolves only after the user enters an upload
+  token and clicks [데이터 갱신] / presses Enter; nothing is crawled before this). Then
+  `crawlProfile`, the two-tier score flow (`fetchScoreCsv` → fallback `crawl`; see Conventions),
+  renders UI via `ui.done({ csv, json })`, and **always uploads** the CSV to the backend using the
+  gate token via `uploadCsv` — the crawled profile rides along in the **same** multipart request
+  (attached to the first CSV upload only), so scores + profile sync in one call. Exposes result on
+  `window.__iidxData`.
 - `scoreDownload.ts` — `fetchScoreCsv(style)` POSTs to `CONFIG.scorePath` and extracts the CSV
   from `textarea#score_data` (`fetchImpl`-injectable). `csvSongCount(csv)` counts data rows.
 - `dev.ts` — **dev entry** (`index.html` loads this). Injects a mock `fetchImpl` that serves
-  `test/fixtures/sample.html`; never hits eagate. Use this to preview UI/parser changes.
+  `test/fixtures/sample.html`; never hits eagate. Mirrors production's token gate — enter any
+  token and click [데이터 갱신] to start. Use this to preview UI/parser changes.
 - `crawler.ts` — `crawl()` orchestrates the fetch + pagination loop over styles × levels.
   `crawlProfile()` fetches the single status page (`CONFIG.statusPath`) and returns a `Profile`
   (or `null` on failure). `main.ts` merges both into `window.__iidxData` as `{ profile, SP, DP }`.
@@ -71,7 +77,10 @@ Because the logic runs in the eagate page context, cross-origin hosting still wo
 - `auth.ts` — `checkLogin(doc)` inspects the header DOM for a filled KONAMI ID span. Pure /
   injectable for testing.
 - `ui.ts` — Shadow-DOM popup panel; `buildUI()` returns the `UIHandle` callbacks
-  (`status/log/progress/counts/done`) that `crawl` invokes.
+  (`status/log/progress/counts/done`) that `crawl` invokes, plus `waitForStart()`. The token
+  input is **required**: the [데이터 갱신] button stays disabled until a token is entered, and
+  `waitForStart()` resolves with that token on click/Enter (revealing the progress area). There is
+  no longer a "JSON 다운로드" button — `done()` just flips the status dot; results go to the server.
 - `constants.ts` — `CONFIG` (path, styles, delay, levels…), `LAMP`/`GRADES` maps, `LOGIN_URL`.
 - `types.ts` — shared domain types; `FetchLike` only requires the members actually used.
 
