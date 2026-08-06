@@ -5,7 +5,7 @@ import { buildStyleCsv } from "./csv";
 import { checkLogin } from "./auth";
 import { installNavGuard } from "./guard";
 import { LOGIN_URL } from "./constants";
-import { uploadCsv, syncProfile } from "./api";
+import { uploadCsv } from "./api";
 import type { DonePayload } from "./types";
 
 declare global {
@@ -101,15 +101,22 @@ declare global {
   ui.done(payload);
 
   // ── 서버 업로드 (토큰은 시작 게이트에서 항상 입력됨) ──
+  // 성적 CSV 업로드 요청에 프로필을 함께 실어 한 번에 동기화한다.
   ui.log("── 서버 업로드 시작 ──", "hi");
 
-  // CSV 업로드 (SP → DP 순)
+  // CSV 업로드 (SP → DP 순). 프로필은 첫 업로드 요청에만 붙여 한 번만 동기화한다.
+  let profileSynced = false;
   for (const style of ["SP", "DP"] as const) {
     const text = csv[style];
     if (!text || !text.trim()) continue;
     try {
       ui.status(style + " 업로드 중…");
-      const result = await uploadCsv(token, style, text);
+      const profileToSync = profileSynced ? null : profile;
+      const result = await uploadCsv(token, style, text, profileToSync);
+      if (profileToSync) {
+        profileSynced = true;
+        ui.log("프로필 동기화 완료 (DJ NAME: " + (profile?.djName || "?") + ")", "ok");
+      }
       if (result.changed) {
         ui.log(
           style + " 업로드 완료 (" + result.song_count + "곡, id: " + result.upload_id.slice(0, 8) + "…)",
@@ -118,17 +125,6 @@ declare global {
       } else {
         ui.log(style + " 업로드: 이전과 동일한 내용 — 스냅샷 미생성", "warn");
       }
-    } catch (err) {
-      ui.log(String(err), "warn");
-    }
-  }
-
-  // 프로필 동기화
-  if (profile) {
-    try {
-      ui.status("프로필 동기화 중…");
-      await syncProfile(token, profile);
-      ui.log("프로필 동기화 완료 (DJ NAME: " + (profile.djName || "?") + ")", "ok");
     } catch (err) {
       ui.log(String(err), "warn");
     }

@@ -15,18 +15,26 @@ function headers(token: string, extra?: Record<string, string>): Record<string, 
 
 /**
  * eagate 성적 CSV를 업로드한다.
+ *
+ * profile 을 함께 넘기면 성적·프로필을 이 한 번의 요청에서 동기화한다
+ * (multipart 의 `profile` 필드에 크롤러 Profile JSON 문자열로 전송).
+ * 별도의 프로필 동기화 호출은 더 이상 필요 없다.
+ *
  * @param token 업로드 토큰
  * @param style "SP" | "DP"
  * @param csvText CSV 문자열 (BOM 포함 가능)
+ * @param profile 함께 동기화할 크롤러 프로필 (선택)
  */
 export async function uploadCsv(
   token: string,
   style: "SP" | "DP",
   csvText: string,
+  profile?: Profile | null,
 ): Promise<ApiUploadResult> {
   const form = new FormData();
   const blob = new Blob([csvText], { type: "text/csv; charset=utf-8" });
   form.append("file", blob, `${style}.csv`);
+  if (profile) form.append("profile", JSON.stringify(profile));
 
   const res = await fetch(`${API_BASE}/iidx/scores/upload?style=${style}`, {
     method: "POST",
@@ -46,19 +54,4 @@ export async function uploadCsv(
   }
 
   return (await res.json()) as ApiUploadResult;
-}
-
-/**
- * 크롤로 수집한 프로필(DJ NAME / IIDX ID)을 서버에 반영한다.
- */
-export async function syncProfile(token: string, profile: Profile): Promise<void> {
-  const res = await fetch(`${API_BASE}/iidx/profile/me/sync`, {
-    method: "POST",
-    headers: headers(token, { "Content-Type": "application/json" }),
-    body: JSON.stringify({ dj_name: profile.djName, dj_id: profile.iidxId }),
-  });
-
-  if (!res.ok && res.status !== 204) {
-    throw new Error(`프로필 동기화 실패: HTTP ${res.status}`);
-  }
 }
