@@ -114,7 +114,7 @@ export function buildUI(onClose?: () => void): UIHandle {
         font-size:12px; font-weight:600; color:#fff; background:#2a2e38; transition:.15s; }
       button:hover:not(:disabled){ filter:brightness(1.2); }
       button:disabled{ opacity:.4; cursor:not-allowed; }
-      button.dl{ background:#32894b; }
+      button.go{ background:#0a84ff; }
       @media (max-width: 480px) {
         .panel { width: calc(100vw - 32px); }
         .status { font-size: 13px; }
@@ -128,27 +128,29 @@ export function buildUI(onClose?: () => void): UIHandle {
     </style>
     <div class="panel">
       <div class="hd" id="hd">
-        <span class="dot run" id="dot"></span>
+        <span class="dot" id="dot"></span>
         <span class="ttl">IInfoDX Crawler</span>
         <span class="x" id="close">×</span>
       </div>
       <div class="body">
         <div class="token-wrap">
-          <label class="token-lbl" for="token-input">IInfoDX 업로드 토큰 (선택)</label>
+          <label class="token-lbl" for="token-input">IInfoDX 업로드 토큰 (필수)</label>
           <input id="token-input" class="token-input" type="text"
-            placeholder="토큰을 붙여넣으면 크롤 완료 후 자동으로 서버에 업로드됩니다" />
+            placeholder="업로드 토큰을 입력해야 데이터 갱신을 시작할 수 있습니다" />
         </div>
-        <div class="status" id="status">준비 중…</div>
-        <div class="barwrap"><div class="bar" id="bar"></div></div>
-        <div class="pct" id="pct">0%</div>
-        <div class="counts">
-          <div class="chip"><b id="cSP">0</b><span>SP 곡</span></div>
-          <div class="chip"><b id="cDP">0</b><span>DP 곡</span></div>
+        <div class="progress-area" id="progress-area" hidden>
+          <div class="status" id="status">준비 중…</div>
+          <div class="barwrap"><div class="bar" id="bar"></div></div>
+          <div class="pct" id="pct">0%</div>
+          <div class="counts">
+            <div class="chip"><b id="cSP">0</b><span>SP 곡</span></div>
+            <div class="chip"><b id="cDP">0</b><span>DP 곡</span></div>
+          </div>
+          <div class="log" id="log"></div>
         </div>
-        <div class="log" id="log"></div>
       </div>
       <div class="ft">
-        <button class="dl" id="dl" disabled>JSON 다운로드</button>
+        <button class="go" id="start" disabled>데이터 갱신</button>
       </div>
     </div>`;
 
@@ -160,6 +162,14 @@ export function buildUI(onClose?: () => void): UIHandle {
     host.remove();
     onClose?.();
   });
+
+  // 토큰이 입력되어야만 [데이터 갱신] 버튼이 활성화된다.
+  const tokenInput = $<HTMLInputElement>("token-input");
+  const startBtn = $<HTMLButtonElement>("start");
+  const syncStartEnabled = () => {
+    startBtn.disabled = tokenInput.value.trim().length === 0;
+  };
+  tokenInput.addEventListener("input", syncStartEnabled);
 
   return {
     host,
@@ -186,22 +196,24 @@ export function buildUI(onClose?: () => void): UIHandle {
       $("dot").className = "dot err";
       if (msg) $("status").textContent = msg;
     },
-    getToken: () => {
-      return ($<HTMLInputElement>("token-input")).value.trim();
-    },
-    done: (data: DonePayload) => {
+    waitForStart: () =>
+      new Promise<string>((resolve) => {
+        const trigger = () => {
+          const token = tokenInput.value.trim();
+          if (!token) return; // 토큰 없으면 시작 불가
+          startBtn.disabled = true;
+          tokenInput.disabled = true;
+          $("progress-area").hidden = false; // 갱신 시작 시 진행 영역 노출
+          $("dot").className = "dot run";
+          resolve(token);
+        };
+        startBtn.addEventListener("click", trigger);
+        tokenInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") trigger();
+        });
+      }),
+    done: (_data: DonePayload) => {
       $("dot").className = "dot done";
-      const dl = $<HTMLButtonElement>("dl");
-      dl.disabled = false;
-      const jsonText = JSON.stringify(data.json, null, 2);
-      dl.addEventListener("click", () => {
-        const blob = new Blob([jsonText], { type: "application/json" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "iidx_scores.json";
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      });
     },
   };
 }

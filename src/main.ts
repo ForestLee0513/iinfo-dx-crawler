@@ -35,6 +35,10 @@ declare global {
   );
   ui.log("페이지를 떠나면 진행 상황/결과가 사라집니다 (닫기로 해제)", "warn");
 
+  // ── 토큰 입력 게이트: 토큰 입력 + [데이터 갱신] 클릭 전에는 크롤링하지 않는다 ──
+  ui.log("업로드 토큰을 입력한 뒤 [데이터 갱신] 버튼을 눌러주세요", "hi");
+  const token = await ui.waitForStart();
+
   ui.status("프로필 수집 중…");
   const profile = await crawlProfile({ onLog: ui.log });
 
@@ -96,45 +100,42 @@ declare global {
   ui.log("완료! 총 " + (spN + dpN) + "곡", "hi");
   ui.done(payload);
 
-  // ── 업로드 토큰이 입력된 경우 서버에 자동 업로드 ──
-  const token = ui.getToken();
-  if (token) {
-    ui.log("── 서버 업로드 시작 ──", "hi");
+  // ── 서버 업로드 (토큰은 시작 게이트에서 항상 입력됨) ──
+  ui.log("── 서버 업로드 시작 ──", "hi");
 
-    // CSV 업로드 (SP → DP 순)
-    for (const style of ["SP", "DP"] as const) {
-      const text = csv[style];
-      if (!text || !text.trim()) continue;
-      try {
-        ui.status(style + " 업로드 중…");
-        const result = await uploadCsv(token, style, text);
-        if (result.changed) {
-          ui.log(
-            style + " 업로드 완료 (" + result.song_count + "곡, id: " + result.upload_id.slice(0, 8) + "…)",
-            "ok",
-          );
-        } else {
-          ui.log(style + " 업로드: 이전과 동일한 내용 — 스냅샷 미생성", "warn");
-        }
-      } catch (err) {
-        ui.log(String(err), "warn");
+  // CSV 업로드 (SP → DP 순)
+  for (const style of ["SP", "DP"] as const) {
+    const text = csv[style];
+    if (!text || !text.trim()) continue;
+    try {
+      ui.status(style + " 업로드 중…");
+      const result = await uploadCsv(token, style, text);
+      if (result.changed) {
+        ui.log(
+          style + " 업로드 완료 (" + result.song_count + "곡, id: " + result.upload_id.slice(0, 8) + "…)",
+          "ok",
+        );
+      } else {
+        ui.log(style + " 업로드: 이전과 동일한 내용 — 스냅샷 미생성", "warn");
       }
+    } catch (err) {
+      ui.log(String(err), "warn");
     }
-
-    // 프로필 동기화
-    if (profile) {
-      try {
-        ui.status("프로필 동기화 중…");
-        await syncProfile(token, profile);
-        ui.log("프로필 동기화 완료 (DJ NAME: " + (profile.djName || "?") + ")", "ok");
-      } catch (err) {
-        ui.log(String(err), "warn");
-      }
-    }
-
-    ui.status("서버 업로드 완료");
-    ui.log("── 업로드 완료 ──", "hi");
   }
+
+  // 프로필 동기화
+  if (profile) {
+    try {
+      ui.status("프로필 동기화 중…");
+      await syncProfile(token, profile);
+      ui.log("프로필 동기화 완료 (DJ NAME: " + (profile.djName || "?") + ")", "ok");
+    } catch (err) {
+      ui.log(String(err), "warn");
+    }
+  }
+
+  ui.status("서버 업로드 완료");
+  ui.log("── 업로드 완료 ──", "hi");
 
   console.log("[IIDX] window.__iidxData:", json);
 })();

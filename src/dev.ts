@@ -49,6 +49,10 @@ const origin = "https://p.eagate.573.jp";
     auth.loggedIn ? "ok" : "warn",
   );
 
+  // 프로덕션과 동일하게 토큰 입력 + [데이터 갱신] 클릭 전에는 시작하지 않는다.
+  ui.log("[DEV] 아무 토큰이나 입력하고 [데이터 갱신]을 눌러보세요", "hi");
+  await ui.waitForStart();
+
   const profile = await crawlProfile({
     origin,
     fetchImpl: mockFetch,

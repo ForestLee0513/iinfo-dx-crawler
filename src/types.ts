@@ -148,7 +148,9 @@ export interface UIHandle {
   log: (text: string, cls?: LogClass) => void;
   done: (data: DonePayload) => void;
   fail: (msg?: string) => void; // 오류 상태(빨간 점)로 전환 + 선택적 상태 문구
-  getToken: () => string; // 토큰 입력창 현재 값 (없으면 빈 문자열)
+  // 토큰 입력 후 [데이터 갱신] 클릭(또는 Enter) 시 입력된 토큰으로 resolve.
+  // 이 Promise 가 resolve 되기 전에는 크롤링을 시작하지 않는다.
+  waitForStart: () => Promise<string>;
 }
 
 // 백엔드 POST /iidx/scores/upload 응답
