@@ -32,6 +32,7 @@ jobs:
 
       - name: Build
         env:
+          API_BASE: ${{ vars.API_BASE }}
           DEPLOY_URL: ${{ vars.DEPLOY_URL }}
         run: yarn build
 
